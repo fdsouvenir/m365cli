@@ -13,6 +13,7 @@ import (
 var listMailScopes = []string{"Mail.Read"}
 var getMailScopes = []string{"Mail.Read"}
 var sendMailScopes = []string{"Mail.Send"}
+var draftMailScopes = []string{"Mail.ReadWrite"}
 
 type Service struct {
 	client      *graph.Client
@@ -91,6 +92,32 @@ func (s *Service) Send(ctx context.Context, to []string, subject string, body st
 
 	_, _, err := s.client.Do(ctx, http.MethodPost, s.sendMailEndpoint(), nil, payload, sendMailScopes, nil)
 	return err
+}
+
+func (s *Service) Draft(ctx context.Context, to []string, subject string, body string) (map[string]any, error) {
+	toRecipients := make([]map[string]any, 0, len(to))
+	for _, address := range to {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+		toRecipients = append(toRecipients, map[string]any{
+			"emailAddress": map[string]any{"address": address},
+		})
+	}
+
+	payload := map[string]any{
+		"subject": subject,
+		"body": map[string]any{
+			"contentType": "Text",
+			"content":     body,
+		},
+		"toRecipients": toRecipients,
+	}
+
+	var result map[string]any
+	err := s.client.DoJSON(ctx, http.MethodPost, s.messagesEndpoint(), nil, payload, draftMailScopes, &result)
+	return result, err
 }
 
 func (s *Service) messagesEndpoint() string {

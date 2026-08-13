@@ -11,9 +11,10 @@ import (
 )
 
 type MailCmd struct {
-	List MailListCmd `cmd:"" help:"List messages"`
-	Get  MailGetCmd  `cmd:"" help:"Get message by ID"`
-	Send MailSendCmd `cmd:"" help:"Send a new message"`
+	List  MailListCmd  `cmd:"" help:"List messages"`
+	Get   MailGetCmd   `cmd:"" help:"Get message by ID"`
+	Send  MailSendCmd  `cmd:"" help:"Send a new message"`
+	Draft MailDraftCmd `cmd:"" help:"Create a draft message"`
 }
 
 type MailListCmd struct {
@@ -145,6 +146,59 @@ func (c *MailSendCmd) Run(ctx context.Context) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "Sent message to %s\n", strings.Join(recipients, ", "))
+	return nil
+}
+
+type MailDraftCmd struct {
+	To      []string `name:"to" help:"Recipient email (repeat or comma-separate)"`
+	Subject string   `name:"subject" required:"" help:"Email subject"`
+	Body    string   `name:"body" help:"Plain text body"`
+	User    string   `name:"user" help:"App-only target user override (UPN or user ID)"`
+	DryRun  bool     `name:"dry-run" help:"Preview draft creation without saving"`
+}
+
+func (c *MailDraftCmd) Run(ctx context.Context) error {
+	rt, err := resolveRuntime(ctx, capMailDraft)
+	if err != nil {
+		return err
+	}
+	targetUser, err := resolveAppOnlyTargetUser(rt.Profile, c.User)
+	if err != nil {
+		return err
+	}
+
+	recipients := splitCSV(c.To)
+
+	if c.DryRun {
+		if outfmt.IsJSON(ctx) {
+			return outfmt.WriteJSON(os.Stdout, map[string]any{
+				"dry_run":  true,
+				"action":   "mail.draft",
+				"to":       recipients,
+				"subject":  c.Subject,
+				"body_len": len(c.Body),
+			})
+		}
+		if len(recipients) > 0 {
+			fmt.Fprintf(os.Stdout, "Dry run: would create draft to %s with subject %q\n", strings.Join(recipients, ", "), c.Subject)
+		} else {
+			fmt.Fprintf(os.Stdout, "Dry run: would create draft with subject %q (no recipients)\n", c.Subject)
+		}
+		return nil
+	}
+
+	svc := mail.New(rt.Graph, targetUser)
+	result, err := svc.Draft(ctx, recipients, c.Subject, strings.TrimSpace(c.Body))
+	if err != nil {
+		return err
+	}
+
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, result)
+	}
+
+	id := stringValue(result["id"])
+	fmt.Fprintf(os.Stdout, "Draft created (id: %s)\n", id)
 	return nil
 }
 

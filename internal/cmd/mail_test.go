@@ -29,6 +29,55 @@ func TestMailSendQuoteFlagParsesWithoutBody(t *testing.T) {
 	}
 }
 
+func TestMailDraftFlagParsesWithoutTo(t *testing.T) {
+	parser, cli, err := newParser("test")
+	if err != nil {
+		t.Fatalf("newParser failed: %v", err)
+	}
+
+	args := []string{
+		"mail", "draft",
+		"--subject", "Draft subject",
+		"--body", "Draft body",
+	}
+	if _, err := parser.Parse(args); err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+
+	if cli.Mail.Draft.Subject != "Draft subject" {
+		t.Fatalf("unexpected subject: %q", cli.Mail.Draft.Subject)
+	}
+	if cli.Mail.Draft.Body != "Draft body" {
+		t.Fatalf("unexpected body: %q", cli.Mail.Draft.Body)
+	}
+	if len(cli.Mail.Draft.To) != 0 {
+		t.Fatalf("expected no recipients, got %v", cli.Mail.Draft.To)
+	}
+}
+
+func TestMailDraftFlagParsesWithTo(t *testing.T) {
+	parser, cli, err := newParser("test")
+	if err != nil {
+		t.Fatalf("newParser failed: %v", err)
+	}
+
+	args := []string{
+		"mail", "draft",
+		"--to", "a@example.com,b@example.com",
+		"--subject", "Draft subject",
+	}
+	if _, err := parser.Parse(args); err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+
+	if len(cli.Mail.Draft.To) == 0 {
+		t.Fatalf("expected recipients, got none")
+	}
+	if cli.Mail.Draft.Subject != "Draft subject" {
+		t.Fatalf("unexpected subject: %q", cli.Mail.Draft.Subject)
+	}
+}
+
 func TestComposeQuotedReplyBodyAppendsQuoteBlock(t *testing.T) {
 	source := map[string]any{
 		"sentDateTime": "2026-02-18T13:00:00Z",
