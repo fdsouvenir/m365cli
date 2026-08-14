@@ -1,6 +1,6 @@
 ---
 name: mog
-description: "mog CLI: safe Microsoft 365 automation via Microsoft Graph, JSON, auth, scoped reads/writes, and Teams chat/DM actions. Use when working with mogcli/mog, Outlook mail, calendar, contacts, Groups, Teams, To Do, OneDrive, Microsoft Graph auth, Hermes/OpenClaw shell automation, or agent-safe Microsoft 365 command allowlists."
+description: "mog CLI: safe Microsoft 365 automation via Microsoft Graph, JSON, auth, scoped reads/writes, and Teams chat/DM actions. Use when working with mogcli/mog, Outlook mail, calendar, contacts, Groups, Teams, To Do, OneDrive, Microsoft Graph auth, shell automation, or agent-safe Microsoft 365 command allowlists."
 ---
 
 # mog
@@ -21,11 +21,11 @@ mog teams --help
 
 Prefer `--json` for agent parsing. Human hints and progress should stay on stderr; stdout is for data.
 
-For Dexterton Hermes, load the profile environment before testing outside the running gateway:
+If your automation stores `MOG_*` settings in a profile env file, load it before testing outside the running service:
 
 ```bash
 set -a
-. ~/.hermes/profiles/dexterton/.env
+. /path/to/profile/.env
 set +a
 mog auth status
 ```
@@ -33,7 +33,7 @@ mog auth status
 ## Safety Rules
 
 - Do not print access tokens, refresh tokens, OAuth client secrets, tenant secrets, or keyring contents.
-- Use the intended profile explicitly for API work: `MOG_PROFILE=dexterton` or `mog --use-profile dexterton ...`.
+- Use the intended profile explicitly for API work: `MOG_PROFILE=<profile>` or `mog --use-profile <profile> ...`.
 - Use `--json` for reads and dry runs that an agent will parse.
 - Use `--dry-run` first where commands support it.
 - Use `--enable-commands` and `--enable-actions` to narrow what an agent can do.
@@ -41,18 +41,18 @@ mog auth status
 - Do not send mail, create/update/delete calendar events, post Teams messages, or mutate contacts/files unless the user asked for that exact action.
 - For ambiguous write requests, preview the target, body, recipients, and action first.
 - Do not add `--force` unless the user explicitly asked for the destructive mutation.
-- In headless/service agents, verify the service environment, not just the login shell. The running Hermes/OpenClaw process must see the same `MOG_*` values as the shell test.
+- In headless/service agents, verify the service environment, not just the login shell. The running service process must see the same `MOG_*` values as the shell test.
 
 Runtime command guards:
 
 ```bash
-MOG_PROFILE=dexterton \
+MOG_PROFILE=<profile> \
 MOG_ENABLE_COMMANDS=mail,calendar,teams \
 MOG_ENABLE_ACTIONS=mail.list,mail.get,calendar.list,calendar.get,teams.list,teams.channels,teams.chats \
 mog teams chats --max 1 --json
 ```
 
-For Dexterton Hermes, the current write allowlist may include:
+A managed write allowlist may include:
 
 ```text
 teams.channel-send,teams.chat-send,teams.dm-send
@@ -81,15 +81,7 @@ Chat.Create
 ChatMessage.Send
 ```
 
-For Hermes/systemd setups, run diagnostics through the actual profile entrypoint after restarting the service:
-
-```bash
-dexterton --accept-hooks gateway restart
-dexterton gateway status
-dexterton send 'Run: mog auth status && mog teams chats --max 1 --json'
-```
-
-If a command works in the shell but fails in Hermes, fix the profile `.env`, service environment, or gateway process before reauthenticating.
+For systemd/service setups, run diagnostics through the actual service entrypoint after restarting it. If a command works in the shell but fails in the service, fix the profile `.env`, service environment, or service process before reauthenticating.
 
 ## Common Reads
 
@@ -120,6 +112,7 @@ Before writes, identify the profile, object id, target, and exact mutation. Pref
 
 ```bash
 mog mail send --to user@example.com --subject "Subject" --body "Message" --dry-run
+mog mail draft --subject "Subject" --body "Message" --dry-run
 mog mail archive <message-id> --dry-run
 mog mail move <message-id> --folder <folder-id-or-supported-well-known-name> --dry-run
 mog mail mark-read <message-id> --dry-run
@@ -140,7 +133,7 @@ Mail workflow mutations are single-message and require distinct allowlisted acti
 For direct Teams messages, prefer the first-class DM command:
 
 ```bash
-mog teams dm-send --to user@dexterton.com --body "Message" --dry-run
+mog teams dm-send --to user@example.com --body "Message" --dry-run
 ```
 
 `dm-send` opens or reuses a one-on-one chat before sending. Its dry run deliberately does not create/open a chat or post a message.
