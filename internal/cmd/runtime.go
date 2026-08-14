@@ -21,35 +21,47 @@ type runtimeEnv struct {
 type runtimeCapability string
 
 const (
-	capMailList       runtimeCapability = "mail.list"
-	capMailGet        runtimeCapability = "mail.get"
-	capMailSend       runtimeCapability = "mail.send"
-	capMailDraft      runtimeCapability = "mail.draft"
-	capCalendarList   runtimeCapability = "calendar.list"
-	capCalendarGet    runtimeCapability = "calendar.get"
-	capCalendarCreate runtimeCapability = "calendar.create"
-	capCalendarUpdate runtimeCapability = "calendar.update"
-	capCalendarDelete runtimeCapability = "calendar.delete"
-	capContactsList   runtimeCapability = "contacts.list"
-	capContactsGet    runtimeCapability = "contacts.get"
-	capContactsCreate runtimeCapability = "contacts.create"
-	capContactsUpdate runtimeCapability = "contacts.update"
-	capContactsDelete runtimeCapability = "contacts.delete"
-	capGroupsList     runtimeCapability = "groups.list"
-	capGroupsGet      runtimeCapability = "groups.get"
-	capGroupsMembers  runtimeCapability = "groups.members"
-	capTasksLists     runtimeCapability = "tasks.lists"
-	capTasksList      runtimeCapability = "tasks.list"
-	capTasksGet       runtimeCapability = "tasks.get"
-	capTasksCreate    runtimeCapability = "tasks.create"
-	capTasksUpdate    runtimeCapability = "tasks.update"
-	capTasksComplete  runtimeCapability = "tasks.complete"
-	capTasksDelete    runtimeCapability = "tasks.delete"
-	capOneDriveLS     runtimeCapability = "onedrive.ls"
-	capOneDriveGet    runtimeCapability = "onedrive.get"
-	capOneDrivePut    runtimeCapability = "onedrive.put"
-	capOneDriveMkdir  runtimeCapability = "onedrive.mkdir"
-	capOneDriveRM     runtimeCapability = "onedrive.rm"
+	capMailList          runtimeCapability = "mail.list"
+	capMailFolders       runtimeCapability = "mail.folders"
+	capMailGet           runtimeCapability = "mail.get"
+	capMailSend          runtimeCapability = "mail.send"
+	capMailDraft         runtimeCapability = "mail.draft"
+	capMailArchive       runtimeCapability = "mail.archive"
+	capMailMove          runtimeCapability = "mail.move"
+	capMailMarkRead      runtimeCapability = "mail.mark-read"
+	capCalendarList      runtimeCapability = "calendar.list"
+	capCalendarGet       runtimeCapability = "calendar.get"
+	capCalendarCreate    runtimeCapability = "calendar.create"
+	capCalendarUpdate    runtimeCapability = "calendar.update"
+	capCalendarDelete    runtimeCapability = "calendar.delete"
+	capContactsList      runtimeCapability = "contacts.list"
+	capContactsGet       runtimeCapability = "contacts.get"
+	capContactsCreate    runtimeCapability = "contacts.create"
+	capContactsUpdate    runtimeCapability = "contacts.update"
+	capContactsDelete    runtimeCapability = "contacts.delete"
+	capGroupsList        runtimeCapability = "groups.list"
+	capGroupsGet         runtimeCapability = "groups.get"
+	capGroupsMembers     runtimeCapability = "groups.members"
+	capTeamsList         runtimeCapability = "teams.list"
+	capTeamsChannels     runtimeCapability = "teams.channels"
+	capTeamsSend         runtimeCapability = "teams.channel-send"
+	capTeamsChats        runtimeCapability = "teams.chats"
+	capTeamsChatMembers  runtimeCapability = "teams.chat-members"
+	capTeamsChatSend     runtimeCapability = "teams.chat-send"
+	capTeamsChatFileSend runtimeCapability = "teams.chat-file-send"
+	capTeamsDMSend       runtimeCapability = "teams.dm-send"
+	capTasksLists        runtimeCapability = "tasks.lists"
+	capTasksList         runtimeCapability = "tasks.list"
+	capTasksGet          runtimeCapability = "tasks.get"
+	capTasksCreate       runtimeCapability = "tasks.create"
+	capTasksUpdate       runtimeCapability = "tasks.update"
+	capTasksComplete     runtimeCapability = "tasks.complete"
+	capTasksDelete       runtimeCapability = "tasks.delete"
+	capOneDriveLS        runtimeCapability = "onedrive.ls"
+	capOneDriveGet       runtimeCapability = "onedrive.get"
+	capOneDrivePut       runtimeCapability = "onedrive.put"
+	capOneDriveMkdir     runtimeCapability = "onedrive.mkdir"
+	capOneDriveRM        runtimeCapability = "onedrive.rm"
 )
 
 const (
@@ -67,35 +79,47 @@ type capabilityRule struct {
 }
 
 var capabilityRules = map[runtimeCapability]capabilityRule{
-	capMailList:       delegatedOrAppOnlyRule(),
-	capMailGet:        delegatedOrAppOnlyRule(),
-	capMailSend:       delegatedOrAppOnlyRule(),
-	capMailDraft:      delegatedOrAppOnlyRule(),
-	capCalendarList:   delegatedOnlyRule(calendarAppOnlyMessage),
-	capCalendarGet:    delegatedOnlyRule(calendarAppOnlyMessage),
-	capCalendarCreate: delegatedOnlyRule(calendarAppOnlyMessage),
-	capCalendarUpdate: delegatedOnlyRule(calendarAppOnlyMessage),
-	capCalendarDelete: delegatedOnlyRule(calendarAppOnlyMessage),
-	capContactsList:   delegatedOrAppOnlyRule(),
-	capContactsGet:    delegatedOrAppOnlyRule(),
-	capContactsCreate: delegatedOrAppOnlyRule(),
-	capContactsUpdate: delegatedOrAppOnlyRule(),
-	capContactsDelete: delegatedOrAppOnlyRule(),
-	capGroupsList:     groupsRule(),
-	capGroupsGet:      groupsRule(),
-	capGroupsMembers:  groupsRule(),
-	capTasksLists:     delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksList:      delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksGet:       delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksCreate:    delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksUpdate:    delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksComplete:  delegatedOnlyRule(tasksAppOnlyMessage),
-	capTasksDelete:    delegatedOnlyRule(tasksAppOnlyMessage),
-	capOneDriveLS:     delegatedOrAppOnlyRule(),
-	capOneDriveGet:    delegatedOrAppOnlyRule(),
-	capOneDrivePut:    delegatedOrAppOnlyRule(),
-	capOneDriveMkdir:  delegatedOrAppOnlyRule(),
-	capOneDriveRM:     delegatedOrAppOnlyRule(),
+	capMailList:          delegatedOrAppOnlyRule(),
+	capMailFolders:       delegatedOrAppOnlyRule(),
+	capMailGet:           delegatedOrAppOnlyRule(),
+	capMailSend:          delegatedOrAppOnlyRule(),
+	capMailDraft:         delegatedOrAppOnlyRule(),
+	capMailArchive:       delegatedOrAppOnlyRule(),
+	capMailMove:          delegatedOrAppOnlyRule(),
+	capMailMarkRead:      delegatedOrAppOnlyRule(),
+	capCalendarList:      delegatedOnlyRule(calendarAppOnlyMessage),
+	capCalendarGet:       delegatedOnlyRule(calendarAppOnlyMessage),
+	capCalendarCreate:    delegatedOnlyRule(calendarAppOnlyMessage),
+	capCalendarUpdate:    delegatedOnlyRule(calendarAppOnlyMessage),
+	capCalendarDelete:    delegatedOnlyRule(calendarAppOnlyMessage),
+	capContactsList:      delegatedOrAppOnlyRule(),
+	capContactsGet:       delegatedOrAppOnlyRule(),
+	capContactsCreate:    delegatedOrAppOnlyRule(),
+	capContactsUpdate:    delegatedOrAppOnlyRule(),
+	capContactsDelete:    delegatedOrAppOnlyRule(),
+	capGroupsList:        groupsRule(),
+	capGroupsGet:         groupsRule(),
+	capGroupsMembers:     groupsRule(),
+	capTeamsList:         teamsRule(),
+	capTeamsChannels:     teamsRule(),
+	capTeamsSend:         teamsRule(),
+	capTeamsChats:        teamsRule(),
+	capTeamsChatMembers:  teamsRule(),
+	capTeamsChatSend:     teamsRule(),
+	capTeamsChatFileSend: teamsRule(),
+	capTeamsDMSend:       teamsRule(),
+	capTasksLists:        delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksList:         delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksGet:          delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksCreate:       delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksUpdate:       delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksComplete:     delegatedOnlyRule(tasksAppOnlyMessage),
+	capTasksDelete:       delegatedOnlyRule(tasksAppOnlyMessage),
+	capOneDriveLS:        delegatedOrAppOnlyRule(),
+	capOneDriveGet:       delegatedOrAppOnlyRule(),
+	capOneDrivePut:       delegatedOrAppOnlyRule(),
+	capOneDriveMkdir:     delegatedOrAppOnlyRule(),
+	capOneDriveRM:        delegatedOrAppOnlyRule(),
 }
 
 func delegatedOnlyRule(message string) capabilityRule {
@@ -134,6 +158,19 @@ func groupsRule() capabilityRule {
 			profile.AuthModeAppOnly,
 		},
 		unsupportedAudienceMessage: enterpriseOnlyProfileMessage,
+	}
+}
+
+func teamsRule() capabilityRule {
+	return capabilityRule{
+		allowedAudiences: []string{
+			profile.AudienceEnterprise,
+		},
+		allowedAuthModes: []string{
+			profile.AuthModeDelegated,
+		},
+		unsupportedAudienceMessage: "Teams commands require an enterprise profile. Use `mog auth use <enterprise-profile>`.",
+		unsupportedAuthModeMessage: "Teams commands are not supported in app-only mode. Use a delegated profile (`mog auth use <profile>`) or re-login without `--mode app-only`.",
 	}
 }
 

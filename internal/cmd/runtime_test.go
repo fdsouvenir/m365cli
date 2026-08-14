@@ -37,6 +37,38 @@ func TestValidateCapability(t *testing.T) {
 			capability: capMailList,
 		},
 		{
+			name: "enterprise app-only mail folders is allowed",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceEnterprise,
+				AuthMode: profile.AuthModeAppOnly,
+			},
+			capability: capMailFolders,
+		},
+		{
+			name: "consumer delegated mail archive is allowed",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceConsumer,
+				AuthMode: profile.AuthModeDelegated,
+			},
+			capability: capMailArchive,
+		},
+		{
+			name: "enterprise app-only mail move is allowed",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceEnterprise,
+				AuthMode: profile.AuthModeAppOnly,
+			},
+			capability: capMailMove,
+		},
+		{
+			name: "consumer delegated mail mark-read is allowed",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceConsumer,
+				AuthMode: profile.AuthModeDelegated,
+			},
+			capability: capMailMarkRead,
+		},
+		{
 			name: "enterprise app-only groups list is allowed",
 			record: config.ProfileRecord{
 				Audience: profile.AudienceEnterprise,
@@ -81,6 +113,34 @@ func TestValidateCapability(t *testing.T) {
 				AuthMode: profile.AuthModeDelegated,
 			},
 			capability: capTasksDelete,
+		},
+		{
+			name: "enterprise delegated Teams chat file send is allowed",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceEnterprise,
+				AuthMode: profile.AuthModeDelegated,
+			},
+			capability: capTeamsChatFileSend,
+		},
+		{
+			name: "consumer delegated Teams chat file send is blocked",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceConsumer,
+				AuthMode: profile.AuthModeDelegated,
+			},
+			capability:   capTeamsChatFileSend,
+			wantError:    true,
+			wantContains: "enterprise profile",
+		},
+		{
+			name: "enterprise app-only Teams chat file send is blocked",
+			record: config.ProfileRecord{
+				Audience: profile.AudienceEnterprise,
+				AuthMode: profile.AuthModeAppOnly,
+			},
+			capability:   capTeamsChatFileSend,
+			wantError:    true,
+			wantContains: "not supported in app-only mode",
 		},
 	}
 

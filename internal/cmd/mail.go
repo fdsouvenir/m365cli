@@ -11,20 +11,28 @@ import (
 )
 
 type MailCmd struct {
-	List  MailListCmd  `cmd:"" help:"List messages"`
-	Get   MailGetCmd   `cmd:"" help:"Get message by ID"`
-	Send  MailSendCmd  `cmd:"" help:"Send a new message"`
-	Draft MailDraftCmd `cmd:"" help:"Create a draft message"`
+	List     MailListCmd     `cmd:"" help:"List one page of messages; JSON reports complete/hasMore coverage"`
+	Folders  MailFoldersCmd  `cmd:"" help:"List one page of top-level folders; JSON reports complete/hasMore coverage"`
+	Get      MailGetCmd      `cmd:"" help:"Get message by ID"`
+	Send     MailSendCmd     `cmd:"" help:"Send a new message"`
+	Draft    MailDraftCmd    `cmd:"" help:"Create a draft message"`
+	Archive  MailArchiveCmd  `cmd:"" help:"Move one message to Outlook's Archive folder"`
+	Move     MailMoveCmd     `cmd:"" help:"Move one message to an explicit destination folder"`
+	MarkRead MailMarkReadCmd `cmd:"" name:"mark-read" help:"Mark one message as read"`
 }
 
 type MailListCmd struct {
-	Max   int    `name:"max" default:"20" help:"Maximum messages"`
-	Query string `name:"query" help:"Search query text"`
-	Page  string `name:"page" aliases:"next-token" help:"Resume from next page token"`
-	User  string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	Max    int    `name:"max" default:"20" help:"Maximum messages requested for the initial page (ignored with --page)"`
+	Query  string `name:"query" help:"Search query text for the initial request"`
+	Folder string `name:"folder" help:"Initial folder ID or well-known name (for example inbox); omit for mailbox-wide messages"`
+	Page   string `name:"page" aliases:"next-token" help:"Resume from an opaque Graph next-page URL; initial request selectors are ignored"`
+	User   string `name:"user" help:"App-only target user override (UPN or user ID)"`
 }
 
 func (c *MailListCmd) Run(ctx context.Context) error {
+	if c.Max <= 0 {
+		return usage("--max must be greater than zero")
+	}
 	rt, err := resolveRuntime(ctx, capMailList)
 	if err != nil {
 		return err
@@ -39,18 +47,74 @@ func (c *MailListCmd) Run(ctx context.Context) error {
 	}
 
 	svc := mail.New(rt.Graph, targetUser)
-	items, next, err := svc.List(ctx, c.Max, c.Query, page)
+	items, next, err := svc.List(ctx, c.Max, c.Query, page, c.Folder)
 	if err != nil {
 		return err
 	}
 
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"messages": items, "next": next})
+		return outfmt.WriteJSON(os.Stdout, mailPagePayload("messages", items, next))
 	}
 
 	printItemTable(ctx, items, []string{"receivedDateTime", "subject", "id", "isRead"})
 	printNextPageHint(uiFromContext(ctx), next)
 	return nil
+}
+
+type MailFoldersCmd struct {
+	Max           int    `name:"max" default:"20" help:"Maximum folders requested for the initial page (ignored with --page)"`
+	Page          string `name:"page" aliases:"next-token" help:"Resume from an opaque Graph next-page URL; initial request selectors are ignored"`
+	IncludeHidden bool   `name:"include-hidden" help:"Include hidden folders in the initial request (excluded by default)"`
+	User          string `name:"user" help:"App-only target user override (UPN or user ID)"`
+}
+
+func (c *MailFoldersCmd) Run(ctx context.Context) error {
+	if c.Max <= 0 {
+		return usage("--max must be greater than zero")
+	}
+	rt, err := resolveRuntime(ctx, capMailFolders)
+	if err != nil {
+		return err
+	}
+	targetUser, err := resolveAppOnlyTargetUser(rt.Profile, c.User)
+	if err != nil {
+		return err
+	}
+	page, err := normalizePageToken(c.Page)
+	if err != nil {
+		return err
+	}
+
+	svc := mail.New(rt.Graph, targetUser)
+	items, next, err := svc.ListFolders(ctx, c.Max, page, c.IncludeHidden)
+	if err != nil {
+		return err
+	}
+
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, mailPagePayload("folders", items, next))
+	}
+
+	printItemTable(ctx, items, []string{
+		"id",
+		"displayName",
+		"parentFolderId",
+		"childFolderCount",
+		"totalItemCount",
+		"unreadItemCount",
+	})
+	printNextPageHint(uiFromContext(ctx), next)
+	return nil
+}
+
+func mailPagePayload(itemKey string, items []map[string]any, next string) map[string]any {
+	hasMore := strings.TrimSpace(next) != ""
+	return map[string]any{
+		itemKey:    items,
+		"next":     next,
+		"hasMore":  hasMore,
+		"complete": !hasMore,
+	}
 }
 
 type MailGetCmd struct {
@@ -80,6 +144,180 @@ func (c *MailGetCmd) Run(ctx context.Context) error {
 
 	printSingleMap(ctx, item)
 	return nil
+}
+
+type MailArchiveCmd struct {
+	ID     string `arg:"" required:"" help:"Message ID"`
+	User   string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	DryRun bool   `name:"dry-run" help:"Preview archive without moving the message"`
+}
+
+func (c *MailArchiveCmd) Run(ctx context.Context) error {
+	id := strings.TrimSpace(c.ID)
+	if id == "" {
+		return usage("message id is required")
+	}
+
+	const destination = "archive"
+	if c.DryRun {
+		return renderMailMoveDryRun(ctx, "mail.archive", "archive", id, destination)
+	}
+
+	rt, err := resolveRuntime(ctx, capMailArchive)
+	if err != nil {
+		return err
+	}
+	targetUser, err := resolveAppOnlyTargetUser(rt.Profile, c.User)
+	if err != nil {
+		return err
+	}
+
+	moved, err := mail.New(rt.Graph, targetUser).Archive(ctx, id)
+	if err != nil {
+		return err
+	}
+	return renderMailMoveResult(ctx, "mail.archive", "Archived", id, destination, moved)
+}
+
+type MailMoveCmd struct {
+	ID     string `arg:"" required:"" help:"Message ID"`
+	Folder string `name:"folder" required:"" help:"Destination folder ID or supported well-known name"`
+	User   string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	DryRun bool   `name:"dry-run" help:"Preview move without moving the message"`
+}
+
+func (c *MailMoveCmd) Run(ctx context.Context) error {
+	id := strings.TrimSpace(c.ID)
+	if id == "" {
+		return usage("message id is required")
+	}
+	destination := strings.TrimSpace(c.Folder)
+	if destination == "" {
+		return usage("destination folder is required")
+	}
+
+	if c.DryRun {
+		return renderMailMoveDryRun(ctx, "mail.move", "move", id, destination)
+	}
+
+	rt, err := resolveRuntime(ctx, capMailMove)
+	if err != nil {
+		return err
+	}
+	targetUser, err := resolveAppOnlyTargetUser(rt.Profile, c.User)
+	if err != nil {
+		return err
+	}
+
+	moved, err := mail.New(rt.Graph, targetUser).Move(ctx, id, destination)
+	if err != nil {
+		return err
+	}
+	return renderMailMoveResult(ctx, "mail.move", "Moved", id, destination, moved)
+}
+
+type MailMarkReadCmd struct {
+	ID     string `arg:"" required:"" help:"Message ID"`
+	User   string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	DryRun bool   `name:"dry-run" help:"Preview read-state update without modifying the message"`
+}
+
+func (c *MailMarkReadCmd) Run(ctx context.Context) error {
+	id := strings.TrimSpace(c.ID)
+	if id == "" {
+		return usage("message id is required")
+	}
+
+	if c.DryRun {
+		if outfmt.IsJSON(ctx) {
+			return outfmt.WriteJSON(os.Stdout, map[string]any{
+				"action":  "mail.mark-read",
+				"dry_run": true,
+				"id":      id,
+				"is_read": true,
+			})
+		}
+		fmt.Fprintf(os.Stdout, "Dry run: would mark message %s as read (isRead=true)\n", id)
+		return nil
+	}
+
+	rt, err := resolveRuntime(ctx, capMailMarkRead)
+	if err != nil {
+		return err
+	}
+	targetUser, err := resolveAppOnlyTargetUser(rt.Profile, c.User)
+	if err != nil {
+		return err
+	}
+
+	updated, err := mail.New(rt.Graph, targetUser).MarkRead(ctx, id)
+	if err != nil {
+		return err
+	}
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"action":  "mail.mark-read",
+			"id":      id,
+			"is_read": true,
+			"message": mailMutationSummary(updated),
+		})
+	}
+	fmt.Fprintf(os.Stdout, "Marked message %s as read\n", id)
+	return nil
+}
+
+func renderMailMoveDryRun(ctx context.Context, action string, verb string, id string, destination string) error {
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"action":      action,
+			"destination": destination,
+			"dry_run":     true,
+			"id":          id,
+		})
+	}
+	fmt.Fprintf(os.Stdout, "Dry run: would %s message %s to folder %s\n", verb, id, destination)
+	return nil
+}
+
+func renderMailMoveResult(ctx context.Context, action string, verb string, id string, destination string, moved map[string]any) error {
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{
+			"action":      action,
+			"destination": destination,
+			"id":          id,
+			"message":     mailMutationSummary(moved),
+		})
+	}
+	fmt.Fprintf(
+		os.Stdout,
+		"%s message %s to folder %s (new id: %s)\n",
+		verb,
+		id,
+		destination,
+		flattenValue(moved["id"]),
+	)
+	return nil
+}
+
+func mailMutationSummary(message map[string]any) map[string]any {
+	keys := []string{
+		"id",
+		"parentFolderId",
+		"subject",
+		"isRead",
+		"receivedDateTime",
+		"sentDateTime",
+		"hasAttachments",
+		"webLink",
+	}
+
+	summary := make(map[string]any, len(keys))
+	for _, key := range keys {
+		if value, ok := message[key]; ok {
+			summary[key] = value
+		}
+	}
+	return summary
 }
 
 type MailSendCmd struct {
