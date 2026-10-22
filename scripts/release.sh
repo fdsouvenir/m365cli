@@ -35,7 +35,7 @@ if grep -q "^## ${version} - Unreleased" "$changelog"; then
   exit 2
 fi
 
-notes_file="$(mktemp -t m365cli-release-notes)"
+notes_file="$(mktemp -t m365cli-release-notes.XXXXXX)"
 trap 'rm -f "$notes_file"' EXIT
 awk -v ver="$version" '
   $0 ~ "^## "ver" " {print "## "ver; in_section=1; next}
