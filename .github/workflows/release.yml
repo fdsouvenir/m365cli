@@ -69,15 +69,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: m365cli-wam
-          path: dist/wam
+          path: build/wam
 
       - name: Verify WAM artifact
         run: |
-          if [[ ! -f dist/wam/m365cli-wam.exe ]]; then
-            echo "missing dist/wam/m365cli-wam.exe" >&2
+          if [[ ! -f build/wam/m365cli-wam.exe ]]; then
+            echo "missing build/wam/m365cli-wam.exe" >&2
             exit 1
           fi
-          ls -lh dist/wam/m365cli-wam.exe
+          ls -lh build/wam/m365cli-wam.exe
 
       - name: Stash GoReleaser config
         run: cp .goreleaser.yaml /tmp/.goreleaser.yaml

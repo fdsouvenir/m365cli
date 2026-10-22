@@ -73,7 +73,7 @@ archives:
       - skills/**/*
       # m365cli-wam.exe (amd64) must be pre-built by CI before goreleaser runs.
       # Build with: uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
-      - src: dist/wam/m365cli-wam.exe
+      - src: build/wam/m365cli-wam.exe
         strip_parent: true
 
 checksum:
