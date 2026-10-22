@@ -16,8 +16,8 @@ func TestFromFlags(t *testing.T) {
 }
 
 func TestFromEnv(t *testing.T) {
-	t.Setenv("MOG_JSON", "true")
-	t.Setenv("MOG_PLAIN", "0")
+	t.Setenv("M365CLI_JSON", "true")
+	t.Setenv("M365CLI_PLAIN", "0")
 	mode := FromEnv()
 	if !mode.JSON {
 		t.Fatal("expected JSON=true from env")

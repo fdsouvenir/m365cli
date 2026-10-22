@@ -48,8 +48,8 @@ func TestResolveOneDriveOutPathDefaultsToDownloadsDir(t *testing.T) {
 		t.Fatalf("resolveOneDriveOutPath failed: %v", err)
 	}
 
-	if !strings.HasSuffix(got, filepath.Join("mogcli", "onedrive-downloads", "report.pdf")) {
-		t.Fatalf("expected download path under mogcli downloads dir, got %q", got)
+	if !strings.HasSuffix(got, filepath.Join("m365cli", "onedrive-downloads", "report.pdf")) {
+		t.Fatalf("expected download path under m365cli downloads dir, got %q", got)
 	}
 }
 

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/auth"
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/auth"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 func setTempUserConfigEnv(t *testing.T) string {

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/auth"
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/graph"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/auth"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 type runtimeEnv struct {
@@ -53,10 +53,10 @@ const (
 )
 
 const (
-	enterpriseOnlyProfileMessage = "This command requires an enterprise profile. Use `mog auth use <enterprise-profile>`."
+	enterpriseOnlyProfileMessage = "This command requires an enterprise profile. Use `m365cli auth use <enterprise-profile>`."
 	appOnlyEnterpriseOnlyMessage = "App-only mode is enterprise-only."
-	calendarAppOnlyMessage       = "Calendar commands are not supported in app-only mode. Use a delegated profile (`mog auth use <profile>`) or re-login without `--mode app-only`."
-	tasksAppOnlyMessage          = "Tasks commands are not supported in app-only mode. Use a delegated profile (`mog auth use <profile>`) or re-login without `--mode app-only`."
+	calendarAppOnlyMessage       = "Calendar commands are not supported in app-only mode. Use a delegated profile (`m365cli auth use <profile>`) or re-login without `--mode app-only`."
+	tasksAppOnlyMessage          = "Tasks commands are not supported in app-only mode. Use a delegated profile (`m365cli auth use <profile>`) or re-login without `--mode app-only`."
 )
 
 type capabilityRule struct {
@@ -257,7 +257,7 @@ func resolveAppOnlyTargetUser(activeProfile config.ProfileRecord, override strin
 	}
 	if target == "" {
 		return "", errfmt.NewUserFacingError(
-			"App-only commands require a target user. Set `--user` or configure a profile default with `mog auth login --app-only-user`.",
+			"App-only commands require a target user. Set `--user` or configure a profile default with `m365cli auth login --app-only-user`.",
 			nil,
 		)
 	}

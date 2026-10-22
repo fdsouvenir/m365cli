@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/profile"
-	"github.com/jaredpalmer/mogcli/internal/secrets"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/secrets"
 )
 
 var (
@@ -72,7 +72,7 @@ func tokenCacheKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:cache:" + normalized, nil
+	return "m365cli:cache:" + normalized, nil
 }
 
 func appSecretKey(profileName string) (string, error) {
@@ -80,7 +80,7 @@ func appSecretKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:appsecret:" + normalized, nil
+	return "m365cli:appsecret:" + normalized, nil
 }
 
 func delegatedSecretKey(profileName string) (string, error) {
@@ -88,7 +88,7 @@ func delegatedSecretKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:delegatedsecret:" + normalized, nil
+	return "m365cli:delegatedsecret:" + normalized, nil
 }
 
 func graphDefaultScope() string {
@@ -466,7 +466,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestAccountID == "" && requestUsername == "" {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s is missing account identity. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s is missing account identity. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -483,7 +483,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 		Username:  requestUsername,
 	})
 	if err != nil {
-		return "", fmt.Errorf("WAM silent token acquisition failed: %w. Run `mog auth login` to sign in again", err)
+		return "", fmt.Errorf("WAM silent token acquisition failed: %w. Run `m365cli auth login` to sign in again", err)
 	}
 	if strings.TrimSpace(resp.AccessToken) == "" {
 		return "", errors.New("WAM silent token response missing access_token")
@@ -491,7 +491,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestAccountID != "" && strings.TrimSpace(resp.AccountID) != "" && !strings.EqualFold(requestAccountID, strings.TrimSpace(resp.AccountID)) {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"WAM returned a different account for profile %s. Run `mog auth login --profile %s ...` to sign in again.",
+				"WAM returned a different account for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -501,7 +501,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestUsername != "" && strings.TrimSpace(resp.Username) != "" && !strings.EqualFold(requestUsername, strings.TrimSpace(resp.Username)) {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"WAM returned a different user for profile %s. Run `mog auth login --profile %s ...` to sign in again.",
+				"WAM returned a different user for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -718,7 +718,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s is invalid. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s is invalid. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -733,7 +733,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s does not match the saved account. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s does not match the saved account. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -747,7 +747,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s does not match the saved tenant. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s does not match the saved tenant. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),

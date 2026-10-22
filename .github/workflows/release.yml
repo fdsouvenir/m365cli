@@ -33,15 +33,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Build mog-wam.exe
+      - name: Build m365cli-wam.exe
         run: |
-          uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name mog-wam scripts/wam/wam_auth.py
+          uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
 
       - name: Upload WAM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mog-wam
-          path: dist/mog-wam.exe
+          name: m365cli-wam
+          path: dist/m365cli-wam.exe
           retention-days: 1
 
   goreleaser:
@@ -68,29 +68,19 @@ jobs:
       - name: Download WAM artifact
         uses: actions/download-artifact@v4
         with:
-          name: mog-wam
+          name: m365cli-wam
           path: dist/wam
 
       - name: Verify WAM artifact
         run: |
-          if [[ ! -f dist/wam/mog-wam.exe ]]; then
-            echo "missing dist/wam/mog-wam.exe" >&2
+          if [[ ! -f dist/wam/m365cli-wam.exe ]]; then
+            echo "missing dist/wam/m365cli-wam.exe" >&2
             exit 1
           fi
-          ls -lh dist/wam/mog-wam.exe
+          ls -lh dist/wam/m365cli-wam.exe
 
       - name: Stash GoReleaser config
         run: cp .goreleaser.yaml /tmp/.goreleaser.yaml
-
-      - name: Validate Homebrew tap token
-        env:
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: |
-          if [[ -z "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]]; then
-            echo "Missing required secret: HOMEBREW_TAP_GITHUB_TOKEN" >&2
-            echo "Set it in repository settings: Settings -> Secrets and variables -> Actions." >&2
-            exit 1
-          fi
 
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -100,4 +90,3 @@ jobs:
           args: release --clean --config /tmp/.goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

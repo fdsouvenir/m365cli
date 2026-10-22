@@ -16,7 +16,7 @@ The release scripts read that section and publish it as GitHub release notes.
 - Added native keychain backend resolution and improved headless password fallback semantics.
 - Improved calendar update safety by splitting attendee and reminder Graph patches.
 - Expanded contacts support with additional fields and deterministic custom-field handling.
-- Added quoted reply support in `mog mail send`.
+- Added quoted reply support in `m365cli mail send`.
 - Strengthened release verification for Homebrew formula URL variants.
 - Isolated test config paths with `XDG_CONFIG_HOME` for more reliable tests.
 

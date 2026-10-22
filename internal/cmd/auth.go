@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/auth"
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/input"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/auth"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/input"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 type authManager interface {
@@ -67,12 +67,12 @@ type AuthLoginCmd struct {
 	Tenant          string `name:"tenant" help:"Tenant ID or domain (enterprise only)"`
 	Authority       string `name:"authority" hidden:"" help:"Advanced authority override"`
 	Mode            string `name:"mode" default:"delegated" help:"Auth mode: delegated or app-only"`
-	ClientSecret      string `name:"client-secret" help:"Client secret (required for app-only; optional for delegated with confidential clients)"`
-	ClientSecretEnv   string `name:"client-secret-env" help:"Env var containing the client secret"`
-	RefreshToken      string `name:"refresh-token" help:"Pre-existing refresh token for headless delegated login (skips device code flow)"`
-	RefreshTokenEnv   string `name:"refresh-token-env" help:"Env var containing a pre-existing refresh token"`
-	ScopeWorkloads    string `name:"scope-workloads" help:"Comma-separated workloads: mail,calendar,contacts,tasks,onedrive,groups"`
-	AppOnlyUser       string `name:"app-only-user" help:"Default target user for app-only commands (UPN or user ID)"`
+	ClientSecret    string `name:"client-secret" help:"Client secret (required for app-only; optional for delegated with confidential clients)"`
+	ClientSecretEnv string `name:"client-secret-env" help:"Env var containing the client secret"`
+	RefreshToken    string `name:"refresh-token" help:"Pre-existing refresh token for headless delegated login (skips device code flow)"`
+	RefreshTokenEnv string `name:"refresh-token-env" help:"Env var containing a pre-existing refresh token"`
+	ScopeWorkloads  string `name:"scope-workloads" help:"Comma-separated workloads: mail,calendar,contacts,tasks,onedrive,groups"`
+	AppOnlyUser     string `name:"app-only-user" help:"Default target user for app-only commands (UPN or user ID)"`
 }
 
 type authLoginParams struct {
@@ -103,7 +103,7 @@ func (c *AuthLoginCmd) Run(ctx context.Context) error {
 
 	if interactive {
 		if mode == profile.AuthModeAppOnly {
-			return usage("interactive app-only onboarding is available via `mog auth app`; use `mog auth login --mode app-only ...` for non-interactive setup")
+			return usage("interactive app-only onboarding is available via `m365cli auth app`; use `m365cli auth login --mode app-only ...` for non-interactive setup")
 		}
 		return c.runInteractive(ctx)
 	}
@@ -119,20 +119,20 @@ func (c *AuthAppWizardCmd) Run(ctx context.Context) error {
 }
 
 func runAuthWizard(ctx context.Context, mode string) error {
-	wizardCommand := "`mog auth`"
+	wizardCommand := "`m365cli auth`"
 	cmd := AuthLoginCmd{Mode: profile.AuthModeDelegated}
 	if mode == profile.AuthModeAppOnly {
-		wizardCommand = "`mog auth app`"
+		wizardCommand = "`m365cli auth app`"
 		cmd.Mode = profile.AuthModeAppOnly
 		cmd.Audience = profile.AudienceEnterprise
 	}
 
 	flags := rootFlagsFromContext(ctx)
 	if flags != nil && flags.NoInput {
-		return usagef("%s requires interactive input. Use `mog auth login ...` for non-interactive usage", wizardCommand)
+		return usagef("%s requires interactive input. Use `m365cli auth login ...` for non-interactive usage", wizardCommand)
 	}
 	if !isTerminal(os.Stdin) {
-		return usagef("%s requires an interactive terminal. Use `mog auth login ...` for non-interactive usage", wizardCommand)
+		return usagef("%s requires an interactive terminal. Use `m365cli auth login ...` for non-interactive usage", wizardCommand)
 	}
 
 	return cmd.runInteractive(ctx)
@@ -147,7 +147,7 @@ func (c *AuthLoginCmd) needsPrompt() bool {
 
 func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 	theme := newAuthWizardTheme()
-	printWizardMessage(ctx, theme.dim("Tip: you'll need an Entra app registration. See https://github.com/jaredpalmer/mogcli#setup"))
+	printWizardMessage(ctx, theme.dim("Tip: you'll need an Entra app registration. See https://github.com/fdsouvenir/m365cli#setup"))
 	fmt.Fprintln(os.Stderr)
 
 	mode := normalizeAuthMode(c.Mode)
@@ -170,7 +170,7 @@ func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 		}
 	}
 
-	// 2. Auth mode is selected by command (`mog auth` for delegated, `mog auth app` for app-only).
+	// 2. Auth mode is selected by command (`m365cli auth` for delegated, `m365cli auth app` for app-only).
 
 	// 3. Client ID
 	clientID := strings.TrimSpace(c.ClientID)
@@ -269,7 +269,7 @@ func (c *AuthLoginCmd) runNonInteractive(ctx context.Context) error {
 		missing = append(missing, "--client-id")
 	}
 	if len(missing) > 0 {
-		return usagef("missing required flags: %s\nTip: run `mog auth login` interactively for guided setup", strings.Join(missing, ", "))
+		return usagef("missing required flags: %s\nTip: run `m365cli auth login` interactively for guided setup", strings.Join(missing, ", "))
 	}
 
 	aud := strings.ToLower(strings.TrimSpace(c.Audience))
@@ -660,7 +660,7 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 		return outfmt.WriteJSON(os.Stdout, map[string]any{"profiles": profiles})
 	}
 	if len(profiles) == 0 {
-		fmt.Fprintln(os.Stdout, "No profiles configured. Run `mog auth login` to get started.")
+		fmt.Fprintln(os.Stdout, "No profiles configured. Run `m365cli auth login` to get started.")
 		return nil
 	}
 
@@ -689,10 +689,10 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 func (c *AuthUpdateCmd) Run(ctx context.Context) error {
 	flags := rootFlagsFromContext(ctx)
 	if flags != nil && flags.NoInput {
-		return usage("`mog auth update` requires interactive input")
+		return usage("`m365cli auth update` requires interactive input")
 	}
 	if !isTerminal(os.Stdin) {
-		return usage("`mog auth update` requires an interactive terminal")
+		return usage("`m365cli auth update` requires an interactive terminal")
 	}
 
 	store := newProfileStore()
@@ -811,7 +811,7 @@ func (c *AuthUpdateCmd) Run(ctx context.Context) error {
 
 			fmt.Fprintf(os.Stdout, "%s Updated auth settings for profile %s\n", theme.ok("✓"), updated.Name)
 			if changedAuth {
-				fmt.Fprintf(os.Stdout, "%s Run `mog auth login --profile %s ...` to refresh tokens for changed auth settings.\n", theme.warn("!"), updated.Name)
+				fmt.Fprintf(os.Stdout, "%s Run `m365cli auth login --profile %s ...` to refresh tokens for changed auth settings.\n", theme.warn("!"), updated.Name)
 			}
 			return nil
 		case "cancel":
@@ -844,7 +844,7 @@ func resolveProfileForUpdate(store profileStore, requested string) (config.Profi
 		return record, nil
 	}
 	if errors.Is(err, profile.ErrNoActiveProfile) {
-		return config.ProfileRecord{}, usage("no active profile. Use `mog auth use <profile>` or pass --profile")
+		return config.ProfileRecord{}, usage("no active profile. Use `m365cli auth use <profile>` or pass --profile")
 	}
 
 	return config.ProfileRecord{}, err

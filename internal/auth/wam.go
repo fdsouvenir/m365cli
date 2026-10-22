@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// WAMRequest is the JSON payload sent to the mog-wam helper on stdin.
+// WAMRequest is the JSON payload sent to the m365cli-wam helper on stdin.
 type WAMRequest struct {
 	Action    string   `json:"action"` // "login" or "acquire_silent"
 	ClientID  string   `json:"client_id"`
@@ -22,7 +22,7 @@ type WAMRequest struct {
 	Username  string   `json:"username,omitempty"`   // for acquire_silent
 }
 
-// WAMResponse is the JSON payload returned by the mog-wam helper on stdout.
+// WAMResponse is the JSON payload returned by the m365cli-wam helper on stdout.
 type WAMResponse struct {
 	AccessToken   string       `json:"access_token"`
 	TokenType     string       `json:"token_type"`
@@ -48,7 +48,7 @@ type WAMIDClaims struct {
 }
 
 // wamExeName is the filename of the WAM helper binary.
-const wamExeName = "mog-wam.exe"
+const wamExeName = "m365cli-wam.exe"
 
 // useWAM reports whether WAM-brokered auth should be used on the current platform.
 func useWAM() bool {
@@ -67,7 +67,7 @@ func findWAMExe() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf(
 			"WAM authentication helper not found at %s. "+
-				"Reinstall mogcli or use app-only mode for headless environments.",
+				"Reinstall m365cli or use app-only mode for headless environments.",
 			wamPath,
 		)
 	}

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/secrets"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/secrets"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -258,7 +258,7 @@ func setTempSecretsHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("MOG_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
 }
 
 func idTokenFor(t *testing.T, accountID string, tenantID string) string {

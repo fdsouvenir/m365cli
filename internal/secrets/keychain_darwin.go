@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/config"
 )
 
 const (

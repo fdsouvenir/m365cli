@@ -101,7 +101,7 @@ func TestRemovedColorFlagIsUnknownUsageError(t *testing.T) {
 }
 
 func TestMOGColorEnvDoesNotAffectVersionExecution(t *testing.T) {
-	t.Setenv("MOG_COLOR", "always")
+	t.Setenv("M365CLI_COLOR", "always")
 
 	stdout, stderr, err := captureExecuteOutput(t, []string{"version"})
 	if err != nil {
@@ -110,7 +110,7 @@ func TestMOGColorEnvDoesNotAffectVersionExecution(t *testing.T) {
 	if got, want := strings.TrimSpace(stdout), VersionString(); got != want {
 		t.Fatalf("unexpected version output: got %q want %q", got, want)
 	}
-	if !strings.HasPrefix(strings.TrimSpace(stdout), "mog version ") {
+	if !strings.HasPrefix(strings.TrimSpace(stdout), "m365cli version ") {
 		t.Fatalf("version output should use gh-style prefix, got %q", strings.TrimSpace(stdout))
 	}
 }

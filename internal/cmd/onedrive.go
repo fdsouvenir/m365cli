@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/services/onedrive"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/services/onedrive"
 )
 
 type OneDriveCmd struct {

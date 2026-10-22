@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 func TestFormatAADSTS(t *testing.T) {

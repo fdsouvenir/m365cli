@@ -9,10 +9,10 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/jaredpalmer/mogcli/internal/authclient"
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/ui"
+	"github.com/fdsouvenir/m365cli/internal/authclient"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/ui"
 )
 
 type RootFlags struct {
@@ -148,9 +148,9 @@ func boolString(v bool) string {
 func newParser(description string) (*kong.Kong, *CLI, error) {
 	envMode := outfmt.FromEnv()
 	vars := kong.Vars{
-		"profile":          envOr("MOG_PROFILE", ""),
-		"client":           envOr("MOG_CLIENT", ""),
-		"enabled_commands": envOr("MOG_ENABLE_COMMANDS", ""),
+		"profile":          envOr("M365CLI_PROFILE", ""),
+		"client":           envOr("M365CLI_CLIENT", ""),
+		"enabled_commands": envOr("M365CLI_ENABLE_COMMANDS", ""),
 		"json":             boolString(envMode.JSON),
 		"plain":            boolString(envMode.Plain),
 		"version":          VersionString(),
@@ -159,7 +159,7 @@ func newParser(description string) (*kong.Kong, *CLI, error) {
 	cli := &CLI{}
 	parser, err := kong.New(
 		cli,
-		kong.Name("mog"),
+		kong.Name("m365cli"),
 		kong.Description(description),
 		kong.ConfigureHelp(helpOptions()),
 		kong.Help(helpPrinter),

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const customCategoryPrefix = "mog.custom."
+const customCategoryPrefix = "m365cli.custom."
 
 type CustomField struct {
 	Key   string `json:"key"`

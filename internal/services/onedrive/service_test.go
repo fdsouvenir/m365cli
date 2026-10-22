@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 func TestListUsesPageTokenURL(t *testing.T) {

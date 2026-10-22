@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 func TestListUsesPageTokenURL(t *testing.T) {
@@ -63,7 +63,7 @@ func TestListSelectIncludesExtendedFieldsAndNormalizesCustom(t *testing.T) {
 				t.Fatalf("expected $select to include %s, got %q", required, selectValue)
 			}
 		}
-		_, _ = fmt.Fprint(w, `{"value":[{"id":"1","categories":["mog.custom.team=platform","mog.custom.region=NA"]}]}`)
+		_, _ = fmt.Fprint(w, `{"value":[{"id":"1","categories":["m365cli.custom.team=platform","m365cli.custom.region=NA"]}]}`)
 	}))
 	defer server.Close()
 

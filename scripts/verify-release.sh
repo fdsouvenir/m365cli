@@ -25,7 +25,7 @@ if grep -q "^## ${version} - Unreleased" "$changelog"; then
   exit 2
 fi
 
-notes_file="$(mktemp -t mogcli-release-notes)"
+notes_file="$(mktemp -t m365cli-release-notes)"
 tmp_assets_dir=""
 cleanup() {
   if [[ -n "$tmp_assets_dir" && -d "$tmp_assets_dir" ]]; then
@@ -72,7 +72,7 @@ fi
 
 make ci
 
-formula_path="${MOG_HOMEBREW_FORMULA_PATH:-../homebrew-tap/Formula/mogcli.rb}"
+formula_path="${M365CLI_HOMEBREW_FORMULA_PATH:-../homebrew-tap/Formula/m365cli.rb}"
 if [[ -f "$formula_path" ]]; then
   formula_version="$(awk -F '\"' '/^[[:space:]]*version /{print $2; exit}' "$formula_path" | xargs)"
   if [[ "$formula_version" != "$version" ]]; then
@@ -80,7 +80,7 @@ if [[ -f "$formula_path" ]]; then
     exit 2
   fi
 
-  tmp_assets_dir="$(mktemp -d -t mogcli-release-assets)"
+  tmp_assets_dir="$(mktemp -d -t m365cli-release-assets)"
   gh release download "v$version" -p checksums.txt -D "$tmp_assets_dir" >/dev/null
   checksums_file="$tmp_assets_dir/checksums.txt"
 
@@ -110,15 +110,15 @@ if [[ -f "$formula_path" ]]; then
     printf '%s' "$sha"
   }
 
-  darwin_amd64_expected="$(sha_for_asset "mogcli_${version}_darwin_amd64.tar.gz")"
-  darwin_arm64_expected="$(sha_for_asset "mogcli_${version}_darwin_arm64.tar.gz")"
-  linux_amd64_expected="$(sha_for_asset "mogcli_${version}_linux_amd64.tar.gz")"
-  linux_arm64_expected="$(sha_for_asset "mogcli_${version}_linux_arm64.tar.gz")"
+  darwin_amd64_expected="$(sha_for_asset "m365cli_${version}_darwin_amd64.tar.gz")"
+  darwin_arm64_expected="$(sha_for_asset "m365cli_${version}_darwin_arm64.tar.gz")"
+  linux_amd64_expected="$(sha_for_asset "m365cli_${version}_linux_amd64.tar.gz")"
+  linux_arm64_expected="$(sha_for_asset "m365cli_${version}_linux_arm64.tar.gz")"
 
-  darwin_amd64_formula="$(formula_sha_for_asset "mogcli_${version}_darwin_amd64.tar.gz" "mogcli_#{version}_darwin_amd64.tar.gz")"
-  darwin_arm64_formula="$(formula_sha_for_asset "mogcli_${version}_darwin_arm64.tar.gz" "mogcli_#{version}_darwin_arm64.tar.gz")"
-  linux_amd64_formula="$(formula_sha_for_asset "mogcli_${version}_linux_amd64.tar.gz" "mogcli_#{version}_linux_amd64.tar.gz")"
-  linux_arm64_formula="$(formula_sha_for_asset "mogcli_${version}_linux_arm64.tar.gz" "mogcli_#{version}_linux_arm64.tar.gz")"
+  darwin_amd64_formula="$(formula_sha_for_asset "m365cli_${version}_darwin_amd64.tar.gz" "m365cli_#{version}_darwin_amd64.tar.gz")"
+  darwin_arm64_formula="$(formula_sha_for_asset "m365cli_${version}_darwin_arm64.tar.gz" "m365cli_#{version}_darwin_arm64.tar.gz")"
+  linux_amd64_formula="$(formula_sha_for_asset "m365cli_${version}_linux_amd64.tar.gz" "m365cli_#{version}_linux_amd64.tar.gz")"
+  linux_arm64_formula="$(formula_sha_for_asset "m365cli_${version}_linux_arm64.tar.gz" "m365cli_#{version}_linux_arm64.tar.gz")"
 
   if [[ "$darwin_amd64_formula" != "$darwin_amd64_expected" ]]; then
     echo "formula sha mismatch (darwin_amd64): $darwin_amd64_formula (expected $darwin_amd64_expected)" >&2
@@ -137,12 +137,12 @@ if [[ -f "$formula_path" ]]; then
     exit 2
   fi
 
-  tap="${MOG_HOMEBREW_TAP:-jaredpalmer/tap}"
-  formula_name="${MOG_HOMEBREW_FORMULA_NAME:-mogcli}"
+  tap="${M365CLI_HOMEBREW_TAP:-jaredpalmer/tap}"
+  formula_name="${M365CLI_HOMEBREW_FORMULA_NAME:-m365cli}"
   brew update >/dev/null
   brew upgrade "${tap}/${formula_name}" || brew install "${tap}/${formula_name}"
   brew test "${tap}/${formula_name}"
-  mog --version
+  m365cli --version
 
   echo "Homebrew verification passed for ${tap}/${formula_name}."
 else

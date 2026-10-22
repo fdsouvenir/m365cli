@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/config"
 )
 
 const (
-	keyringPasswordEnv = "MOG_KEYRING_PASSWORD" //nolint:gosec // env var name, not a credential
-	keyringBackendEnv  = "MOG_KEYRING_BACKEND"  //nolint:gosec // env var name, not a credential
+	keyringPasswordEnv = "M365CLI_KEYRING_PASSWORD" //nolint:gosec // env var name, not a credential
+	keyringBackendEnv  = "M365CLI_KEYRING_BACKEND"  //nolint:gosec // env var name, not a credential
 )
 
 var (

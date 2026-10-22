@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/services/mail"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/services/mail"
 )
 
 type MailCmd struct {

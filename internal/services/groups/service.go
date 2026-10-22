@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 var listGroupsScopes = []string{"Group.Read.All"}

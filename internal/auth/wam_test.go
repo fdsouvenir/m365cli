@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
 )
 
 func TestLoginDelegatedWAMSuccess(t *testing.T) {
@@ -401,7 +401,7 @@ func TestWAMResponseJSON(t *testing.T) {
 
 func TestFindWAMExeNotFound(t *testing.T) {
 	// findWAMExe looks next to os.Executable(). In test, that's the test binary dir.
-	// mog-wam.exe won't exist there, so this should fail with a clear error.
+	// m365cli-wam.exe won't exist there, so this should fail with a clear error.
 	_, err := findWAMExe()
 	if err == nil {
 		t.Fatal("expected error when WAM exe is not found")

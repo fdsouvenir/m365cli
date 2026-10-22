@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 var listTaskScopes = []string{"Tasks.Read"}

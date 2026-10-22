@@ -2,9 +2,9 @@
 # requires-python = ">=3.10"
 # dependencies = ["msal[broker]>=1.20,<2"]
 # ///
-"""WAM (Web Account Manager) authentication helper for mogcli.
+"""WAM (Web Account Manager) authentication helper for m365cli.
 
-Invoked as a subprocess by the mog CLI on Windows.
+Invoked as a subprocess by the m365cli CLI on Windows.
 Reads a JSON request from stdin, performs WAM-brokered authentication
 via MSAL Python, and writes a JSON response to stdout.
 
@@ -33,7 +33,7 @@ def error_response(code: str, description: str) -> dict:
 
 def token_cache_path() -> str:
     base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA") or os.path.expanduser("~")
-    cache_dir = os.path.join(base, "mogcli")
+    cache_dir = os.path.join(base, "m365cli")
     os.makedirs(cache_dir, exist_ok=True)
     return os.path.join(cache_dir, "wam-token-cache.json")
 
@@ -107,14 +107,14 @@ def acquire_silent(
     if account is None:
         return error_response(
             "no_account",
-            "No cached account found. Run `mog auth login` to sign in again.",
+            "No cached account found. Run `m365cli auth login` to sign in again.",
         )
 
     result = app.acquire_token_silent(scopes, account=account)
     if result is None:
         return error_response(
             "silent_failed",
-            "Silent token acquisition returned no result. Run `mog auth login` to sign in again.",
+            "Silent token acquisition returned no result. Run `m365cli auth login` to sign in again.",
         )
     if "error" in result:
         return error_response(result["error"], result.get("error_description", ""))
