@@ -421,3 +421,35 @@ func TestLoginSecondAccountPreservesDefault(t *testing.T) {
 		t.Fatalf("adding account switched default to %s", active.Name)
 	}
 }
+
+func TestLoginRejectsInvalidOrUnidentifiedAccount(t *testing.T) {
+	for _, tc := range []struct {
+		name, profileName, accountID string
+		wantAuth                     bool
+	}{
+		{"invalid profile rejected before consent", "../bad", "account-id", false},
+		{"missing account identity cannot report success", "work", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setTempUserConfigEnv(t)
+			manager := &fakeAuthManager{delegatedAccount: auth.AccountInfo{AccountID: tc.accountID}}
+			previous := newAuthManager
+			newAuthManager = func() authManager { return manager }
+			defer func() { newAuthManager = previous }()
+			err := runAuthLogin(context.Background(), authLoginParams{Profile: tc.profileName, Audience: "enterprise", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true})
+			if err == nil {
+				t.Fatal("invalid login reported success")
+			}
+			if called := manager.delegatedInput.ProfileName != ""; called != tc.wantAuth {
+				t.Fatalf("auth called=%v want=%v", called, tc.wantAuth)
+			}
+			profiles, err := profile.NewStore().List()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(profiles) != 0 {
+				t.Fatal("invalid profile persisted")
+			}
+		})
+	}
+}

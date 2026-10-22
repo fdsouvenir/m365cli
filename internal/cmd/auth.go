@@ -324,6 +324,10 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		AuthMode:  mode,
 	}
 
+	if err := profile.ValidateRecord(record); err != nil {
+		return usage(err.Error())
+	}
+
 	switch mode {
 	case profile.AuthModeAppOnly:
 		if !strings.EqualFold(record.Audience, profile.AudienceEnterprise) {
@@ -403,6 +407,10 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		})
 		if err != nil {
 			return err
+		}
+
+		if strings.TrimSpace(account.AccountID) == "" {
+			return errors.New("Microsoft sign-in returned no stable account identity; profile was not saved")
 		}
 
 		record.DelegatedScopeWorkloads = workloads
