@@ -51,6 +51,7 @@ func TestSetTempUserConfigEnvIsolatesUserDirs(t *testing.T) {
 }
 
 type fakeAuthManager struct {
+	logoutErr        error
 	delegatedAccount auth.AccountInfo
 	delegatedInput   auth.DelegatedLoginInput
 	appOnlyInput     auth.AppOnlyLoginInput
@@ -71,7 +72,7 @@ func (m *fakeAuthManager) LoginAppOnly(_ context.Context, input auth.AppOnlyLogi
 }
 
 func (m *fakeAuthManager) Logout(string) error {
-	return nil
+	return m.logoutErr
 }
 
 func TestAuthLoginNonInteractiveRequiresFlags(t *testing.T) {
@@ -451,5 +452,23 @@ func TestLoginRejectsInvalidOrUnidentifiedAccount(t *testing.T) {
 				t.Fatal("invalid profile persisted")
 			}
 		})
+	}
+}
+
+func TestLogoutAllPreservesProfileWhenCredentialRemovalFails(t *testing.T) {
+	setTempUserConfigEnv(t)
+	store := profile.NewStore()
+	if err := store.Upsert(config.ProfileRecord{Name: "work", ClientID: "client", Audience: "enterprise", AuthMode: "delegated"}, true); err != nil {
+		t.Fatal(err)
+	}
+	previous := newAuthManager
+	newAuthManager = func() authManager { return &fakeAuthManager{logoutErr: errors.New("credential store unavailable")} }
+	defer func() { newAuthManager = previous }()
+	command := AuthLogoutCmd{All: true}
+	if err := command.Run(context.Background()); err == nil {
+		t.Fatal("reported logout success after credential removal failed")
+	}
+	if _, ok, err := store.Get("work"); err != nil || !ok {
+		t.Fatalf("failed logout must retain profile for recovery: found=%v err=%v", ok, err)
 	}
 }

@@ -687,8 +687,12 @@ func (m *Manager) Logout(profileName string) error {
 	}
 
 	// Clean up delegated client secret if stored.
-	if delSecretKey, err := delegatedSecretKey(profileName); err == nil {
-		_ = secrets.DeleteSecret(delSecretKey)
+	delSecretKey, err := delegatedSecretKey(profileName)
+	if err != nil {
+		return err
+	}
+	if err := secrets.DeleteSecret(delSecretKey); err != nil {
+		return err
 	}
 
 	return nil

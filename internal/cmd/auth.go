@@ -637,8 +637,12 @@ func (c *AuthLogoutCmd) Run(ctx context.Context) error {
 			return err
 		}
 		for _, p := range profiles {
-			_ = manager.Logout(p.Name)
-			_, _ = store.Delete(p.Name)
+			if err := manager.Logout(p.Name); err != nil {
+				return fmt.Errorf("logout profile %s: %w", p.Name, err)
+			}
+			if _, err := store.Delete(p.Name); err != nil {
+				return fmt.Errorf("remove profile %s: %w", p.Name, err)
+			}
 		}
 		if outfmt.IsJSON(ctx) {
 			return outfmt.WriteJSON(os.Stdout, map[string]any{"logout": "all", "removed": len(profiles)})
