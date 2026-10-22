@@ -4,18 +4,23 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/config"
 )
 
 func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("MOG_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 
-	key := "mog:test:key"
+	key := "m365cli:test:key"
 	value := []byte("hello-world")
 
 	if err := SetSecret(key, value); err != nil {
@@ -42,13 +47,13 @@ func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UserConfigDir failed: %v", err)
 	}
-	if _, statErr := os.Stat(filepath.Join(dir, "mogcli", "keyring")); statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+	if _, statErr := os.Stat(filepath.Join(dir, "m365cli", "keyring")); statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("stat keyring dir failed: %v", statErr)
 	}
 }
 
 func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
-	t.Setenv("MOG_KEYRING_BACKEND", "keychain")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "keychain")
 	restore := stubNativeKeychainFuncs(t)
 
 	nativeKeychainAvailableFunc = func() bool { return true }
@@ -68,7 +73,7 @@ func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
 	}
 
 	getNativeKeychainSecretFunc = func(key string) ([]byte, error) {
-		if key != "mog:test:key" {
+		if key != "m365cli:test:key" {
 			t.Fatalf("unexpected get key %q", key)
 		}
 		return []byte("value-from-keychain"), nil
@@ -82,17 +87,17 @@ func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
 
 	t.Cleanup(restore)
 
-	if err := SetSecret("mog:test:key", []byte("hello-world")); err != nil {
+	if err := SetSecret("m365cli:test:key", []byte("hello-world")); err != nil {
 		t.Fatalf("SetSecret failed: %v", err)
 	}
-	if setKey != "mog:test:key" {
+	if setKey != "m365cli:test:key" {
 		t.Fatalf("unexpected set key: %q", setKey)
 	}
 	if string(setValue) != "hello-world" {
 		t.Fatalf("unexpected set value: %q", string(setValue))
 	}
 
-	got, err := GetSecret("mog:test:key")
+	got, err := GetSecret("m365cli:test:key")
 	if err != nil {
 		t.Fatalf("GetSecret failed: %v", err)
 	}
@@ -100,10 +105,10 @@ func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
 		t.Fatalf("unexpected get value: %q", string(got))
 	}
 
-	if err := DeleteSecret("mog:test:key"); err != nil {
+	if err := DeleteSecret("m365cli:test:key"); err != nil {
 		t.Fatalf("DeleteSecret failed: %v", err)
 	}
-	if deleteKey != "mog:test:key" {
+	if deleteKey != "m365cli:test:key" {
 		t.Fatalf("unexpected delete key: %q", deleteKey)
 	}
 
@@ -115,8 +120,12 @@ func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
 func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("MOG_KEYRING_BACKEND", "auto")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "auto")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 
 	restore := stubNativeKeychainFuncs(t)
 	nativeKeychainAvailableFunc = func() bool { return false }
@@ -134,7 +143,7 @@ func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 	}
 	t.Cleanup(restore)
 
-	key := "mog:test:auto-file"
+	key := "m365cli:test:auto-file"
 	value := []byte("auto-file-value")
 	if err := SetSecret(key, value); err != nil {
 		t.Fatalf("SetSecret failed: %v", err)
@@ -156,8 +165,11 @@ func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 func TestResolveKeyringBackendInfoPrecedence(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("MOG_KEYRING_BACKEND", "")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "")
 
 	info, err := ResolveKeyringBackendInfo()
 	if err != nil {
@@ -179,7 +191,7 @@ func TestResolveKeyringBackendInfoPrecedence(t *testing.T) {
 		t.Fatalf("unexpected config backend info: %#v", info)
 	}
 
-	t.Setenv("MOG_KEYRING_BACKEND", "keychain")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "keychain")
 	info, err = ResolveKeyringBackendInfo()
 	if err != nil {
 		t.Fatalf("ResolveKeyringBackendInfo env failed: %v", err)
@@ -190,8 +202,8 @@ func TestResolveKeyringBackendInfoPrecedence(t *testing.T) {
 }
 
 func TestSetSecretRejectsInvalidBackend(t *testing.T) {
-	t.Setenv("MOG_KEYRING_BACKEND", "bogus")
-	err := SetSecret("mog:test:key", []byte("value"))
+	t.Setenv("M365CLI_KEYRING_BACKEND", "bogus")
+	err := SetSecret("m365cli:test:key", []byte("value"))
 	if err == nil {
 		t.Fatal("expected SetSecret to fail for invalid backend")
 	}
@@ -201,12 +213,12 @@ func TestSetSecretRejectsInvalidBackend(t *testing.T) {
 }
 
 func TestSetSecretRejectsUnavailableNativeKeychain(t *testing.T) {
-	t.Setenv("MOG_KEYRING_BACKEND", "keychain")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "keychain")
 	restore := stubNativeKeychainFuncs(t)
 	nativeKeychainAvailableFunc = func() bool { return false }
 	t.Cleanup(restore)
 
-	err := SetSecret("mog:test:key", []byte("value"))
+	err := SetSecret("m365cli:test:key", []byte("value"))
 	if err == nil {
 		t.Fatal("expected SetSecret to fail for unavailable native keychain")
 	}
@@ -216,7 +228,7 @@ func TestSetSecretRejectsUnavailableNativeKeychain(t *testing.T) {
 }
 
 func TestKeyringPasswordTreatsEmptyAsIntentional(t *testing.T) {
-	t.Setenv("MOG_KEYRING_PASSWORD", "")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "")
 	password, ok := keyringPassword()
 	if !ok {
 		t.Fatal("expected empty keyring password to be treated as set")
@@ -241,5 +253,35 @@ func stubNativeKeychainFuncs(t *testing.T) func() {
 		setNativeKeychainSecretFunc = originalSet
 		getNativeKeychainSecretFunc = originalGet
 		deleteNativeKeychainSecretFunc = originalDelete
+	}
+}
+
+// Persisted headless credentials must not expose token plaintext; a wrong key
+// must not be accepted. Existing round-trip tests did not inspect disk bytes.
+func TestFileSecretEncryptedAtRest(t *testing.T) {
+	secretHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", secretHome)
+	t.Setenv("APPDATA", secretHome)
+	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
+	value := []byte("distinct-refresh-token-for-regression")
+	if err := SetSecret("regression", value); err != nil {
+		t.Fatal(err)
+	}
+	path, err := secretPath("regression")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), string(value)) {
+		t.Fatal("credential stored in plaintext")
+	}
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "wrong-password")
+	if _, err := GetSecret("regression"); err == nil {
+		t.Fatal("wrong key accepted")
 	}
 }

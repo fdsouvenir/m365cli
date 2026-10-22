@@ -9,14 +9,14 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/jaredpalmer/mogcli/internal/authclient"
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/ui"
+	"github.com/fdsouvenir/m365cli/internal/authclient"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/ui"
 )
 
 type RootFlags struct {
-	Profile        string `name:"use-profile" group:"inherited-flags" help:"Profile name override for API commands" default:"${profile}"`
+	Profile        string `name:"use-profile" aliases:"account" group:"inherited-flags" help:"Profile name override for API commands" default:"${profile}"`
 	Client         string `group:"inherited-flags" help:"Logical client registration name" default:"${client}"`
 	EnableCommands string `group:"inherited-flags" help:"Comma-separated list of enabled top-level commands (restricts CLI)" default:"${enabled_commands}"`
 	JSON           bool   `group:"inherited-flags" help:"Output JSON to stdout (best for scripting)" default:"${json}"`
@@ -31,6 +31,7 @@ type CLI struct {
 
 	Version kong.VersionFlag `group:"inherited-flags" help:"Print version and exit"`
 
+	Excel      ExcelCmd              `cmd:"" help:"Work with business Excel workbooks (delegated only)"`
 	Auth       AuthCmd               `cmd:"" help:"Authenticate and manage profiles"`
 	Mail       MailCmd               `cmd:"" aliases:"email" help:"Read and send Outlook mail"`
 	Calendar   CalendarCmd           `cmd:"" help:"Manage Outlook calendar events"`
@@ -148,9 +149,9 @@ func boolString(v bool) string {
 func newParser(description string) (*kong.Kong, *CLI, error) {
 	envMode := outfmt.FromEnv()
 	vars := kong.Vars{
-		"profile":          envOr("MOG_PROFILE", ""),
-		"client":           envOr("MOG_CLIENT", ""),
-		"enabled_commands": envOr("MOG_ENABLE_COMMANDS", ""),
+		"profile":          envOr("M365CLI_PROFILE", ""),
+		"client":           envOr("M365CLI_CLIENT", ""),
+		"enabled_commands": envOr("M365CLI_ENABLE_COMMANDS", ""),
 		"json":             boolString(envMode.JSON),
 		"plain":            boolString(envMode.Plain),
 		"version":          VersionString(),
@@ -159,7 +160,7 @@ func newParser(description string) (*kong.Kong, *CLI, error) {
 	cli := &CLI{}
 	parser, err := kong.New(
 		cli,
-		kong.Name("mog"),
+		kong.Name("m365cli"),
 		kong.Description(description),
 		kong.ConfigureHelp(helpOptions()),
 		kong.Help(helpPrinter),
@@ -176,7 +177,7 @@ func newParser(description string) (*kong.Kong, *CLI, error) {
 }
 
 func baseDescription() string {
-	return "Microsoft Graph CLI for Outlook Mail/Calendar/Contacts/Groups/Tasks/OneDrive"
+	return "Microsoft Graph CLI for Outlook Mail/Calendar/Contacts/Groups/Tasks/OneDrive/Excel"
 }
 
 func helpDescription() string {

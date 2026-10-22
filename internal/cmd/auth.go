@@ -9,11 +9,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/auth"
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/input"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/auth"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/input"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 type authManager interface {
@@ -46,6 +47,7 @@ type AuthCmd struct {
 	Login  AuthLoginCmd     `cmd:"" help:"Login and save profile credentials"`
 	Update AuthUpdateCmd    `cmd:"" help:"Review current auth settings and update selected fields"`
 	Logout AuthLogoutCmd    `cmd:"" help:"Log out of a Microsoft account"`
+	Check  AuthCheckCmd     `cmd:"" help:"Verify selected delegated account against Microsoft Graph (read-only)"`
 	Status AuthStatusCmd    `cmd:"" help:"Display active account and login status"`
 	Use    AuthUseCmd       `cmd:"" help:"Switch the active profile"`
 
@@ -62,17 +64,17 @@ type AuthUpdateCmd struct {
 
 type AuthLoginCmd struct {
 	Profile         string `name:"profile" help:"Profile name (e.g. personal, work)"`
-	Audience        string `name:"audience" help:"Token audience: consumer (MSA) or enterprise (Entra)"`
-	ClientID        string `name:"client-id" help:"Application (client) ID from Entra app registration"`
+	Audience        string `name:"audience" env:"M365CLI_AUDIENCE" help:"Token audience: consumer (MSA) or enterprise (Entra)"`
+	ClientID        string `name:"client-id" env:"M365CLI_CLIENT_ID" help:"Application (client) ID from operator-provided Entra app registration"`
 	Tenant          string `name:"tenant" help:"Tenant ID or domain (enterprise only)"`
 	Authority       string `name:"authority" hidden:"" help:"Advanced authority override"`
 	Mode            string `name:"mode" default:"delegated" help:"Auth mode: delegated or app-only"`
-	ClientSecret      string `name:"client-secret" help:"Client secret (required for app-only; optional for delegated with confidential clients)"`
-	ClientSecretEnv   string `name:"client-secret-env" help:"Env var containing the client secret"`
-	RefreshToken      string `name:"refresh-token" help:"Pre-existing refresh token for headless delegated login (skips device code flow)"`
-	RefreshTokenEnv   string `name:"refresh-token-env" help:"Env var containing a pre-existing refresh token"`
-	ScopeWorkloads    string `name:"scope-workloads" help:"Comma-separated workloads: mail,calendar,contacts,tasks,onedrive,groups"`
-	AppOnlyUser       string `name:"app-only-user" help:"Default target user for app-only commands (UPN or user ID)"`
+	ClientSecret    string `name:"client-secret" help:"Client secret (required for app-only; optional for delegated with confidential clients)"`
+	ClientSecretEnv string `name:"client-secret-env" help:"Env var containing the client secret"`
+	RefreshToken    string `name:"refresh-token" help:"Pre-existing refresh token for headless delegated login (skips device code flow)"`
+	RefreshTokenEnv string `name:"refresh-token-env" help:"Env var containing a pre-existing refresh token"`
+	ScopeWorkloads  string `name:"scope-workloads" help:"Comma-separated workloads: mail,calendar,contacts,tasks,onedrive,groups"`
+	AppOnlyUser     string `name:"app-only-user" help:"Default target user for app-only commands (UPN or user ID)"`
 }
 
 type authLoginParams struct {
@@ -103,7 +105,7 @@ func (c *AuthLoginCmd) Run(ctx context.Context) error {
 
 	if interactive {
 		if mode == profile.AuthModeAppOnly {
-			return usage("interactive app-only onboarding is available via `mog auth app`; use `mog auth login --mode app-only ...` for non-interactive setup")
+			return usage("interactive app-only onboarding is available via `m365cli auth app`; use `m365cli auth login --mode app-only ...` for non-interactive setup")
 		}
 		return c.runInteractive(ctx)
 	}
@@ -119,20 +121,20 @@ func (c *AuthAppWizardCmd) Run(ctx context.Context) error {
 }
 
 func runAuthWizard(ctx context.Context, mode string) error {
-	wizardCommand := "`mog auth`"
+	wizardCommand := "`m365cli auth`"
 	cmd := AuthLoginCmd{Mode: profile.AuthModeDelegated}
 	if mode == profile.AuthModeAppOnly {
-		wizardCommand = "`mog auth app`"
+		wizardCommand = "`m365cli auth app`"
 		cmd.Mode = profile.AuthModeAppOnly
 		cmd.Audience = profile.AudienceEnterprise
 	}
 
 	flags := rootFlagsFromContext(ctx)
 	if flags != nil && flags.NoInput {
-		return usagef("%s requires interactive input. Use `mog auth login ...` for non-interactive usage", wizardCommand)
+		return usagef("%s requires interactive input. Use `m365cli auth login ...` for non-interactive usage", wizardCommand)
 	}
 	if !isTerminal(os.Stdin) {
-		return usagef("%s requires an interactive terminal. Use `mog auth login ...` for non-interactive usage", wizardCommand)
+		return usagef("%s requires an interactive terminal. Use `m365cli auth login ...` for non-interactive usage", wizardCommand)
 	}
 
 	return cmd.runInteractive(ctx)
@@ -147,7 +149,7 @@ func (c *AuthLoginCmd) needsPrompt() bool {
 
 func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 	theme := newAuthWizardTheme()
-	printWizardMessage(ctx, theme.dim("Tip: you'll need an Entra app registration. See https://github.com/jaredpalmer/mogcli#setup"))
+	printWizardMessage(ctx, theme.dim("Tip: you'll need an Entra app registration. See https://github.com/fdsouvenir/m365cli#setup"))
 	fmt.Fprintln(os.Stderr)
 
 	mode := normalizeAuthMode(c.Mode)
@@ -170,7 +172,7 @@ func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 		}
 	}
 
-	// 2. Auth mode is selected by command (`mog auth` for delegated, `mog auth app` for app-only).
+	// 2. Auth mode is selected by command (`m365cli auth` for delegated, `m365cli auth app` for app-only).
 
 	// 3. Client ID
 	clientID := strings.TrimSpace(c.ClientID)
@@ -199,7 +201,7 @@ func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 	if mode == profile.AuthModeDelegated {
 		allWorkloads := []string{"mail", "calendar", "contacts", "tasks", "onedrive"}
 		if audience == profile.AudienceEnterprise {
-			allWorkloads = append(allWorkloads, "groups")
+			allWorkloads = append(allWorkloads, "groups", "excel")
 		}
 		var err error
 		workloads, err = promptDelegatedWorkloads(ctx, audience, allWorkloads)
@@ -269,7 +271,7 @@ func (c *AuthLoginCmd) runNonInteractive(ctx context.Context) error {
 		missing = append(missing, "--client-id")
 	}
 	if len(missing) > 0 {
-		return usagef("missing required flags: %s\nTip: run `mog auth login` interactively for guided setup", strings.Join(missing, ", "))
+		return usagef("missing required flags: %s\nTip: run `m365cli auth login` interactively for guided setup", strings.Join(missing, ", "))
 	}
 
 	aud := strings.ToLower(strings.TrimSpace(c.Audience))
@@ -322,6 +324,10 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		AuthMode:  mode,
 	}
 
+	if err := profile.ValidateRecord(record); err != nil {
+		return usage(err.Error())
+	}
+
 	switch mode {
 	case profile.AuthModeAppOnly:
 		if !strings.EqualFold(record.Audience, profile.AudienceEnterprise) {
@@ -356,6 +362,14 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 				return usagef("delegated mode requires --scope-workloads (%s)", auth.DelegatedScopeWorkloadsHelp())
 			}
 			return usage(err.Error())
+		}
+
+		if record.Audience == profile.AudienceConsumer {
+			for _, w := range workloads {
+				if w == "excel" || w == "groups" {
+					return usage(w + " requires a business account")
+				}
+			}
 		}
 
 		scopes, err := auth.DelegatedScopesForWorkloads(workloads)
@@ -395,6 +409,10 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 			return err
 		}
 
+		if strings.TrimSpace(account.AccountID) == "" {
+			return errors.New("Microsoft sign-in returned no stable account identity; profile was not saved")
+		}
+
 		record.DelegatedScopeWorkloads = workloads
 		record.AccountID = account.AccountID
 		record.Username = account.Username
@@ -404,7 +422,17 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		}
 	}
 
-	if err := store.Upsert(record, true); err != nil {
+	makeActive := false
+	active, activeErr := store.Active()
+	if errors.Is(activeErr, profile.ErrNoActiveProfile) {
+		makeActive = true
+	} else if activeErr != nil {
+		return activeErr
+	} else {
+		makeActive = active.Name == record.Name
+	}
+	record.Active = makeActive
+	if err := store.Upsert(record, makeActive); err != nil {
 		return err
 	}
 
@@ -413,7 +441,7 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 			"profile":  record.Name,
 			"audience": record.Audience,
 			"mode":     record.AuthMode,
-			"active":   true,
+			"active":   makeActive,
 		})
 	}
 
@@ -527,7 +555,7 @@ func promptDelegatedWorkloads(ctx context.Context, audience string, defaults []s
 		{Label: "onedrive", Value: "onedrive"},
 	}
 	if audience == profile.AudienceEnterprise {
-		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: "groups (enterprise only)", Value: "groups"})
+		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: "groups (enterprise only)", Value: "groups"}, input.SelectStringOption{Label: "excel (business only)", Value: "excel"})
 	}
 
 	selected, err := input.MultiSelectStrings(ctx, input.MultiSelectStringConfig{
@@ -609,8 +637,12 @@ func (c *AuthLogoutCmd) Run(ctx context.Context) error {
 			return err
 		}
 		for _, p := range profiles {
-			_ = manager.Logout(p.Name)
-			_, _ = store.Delete(p.Name)
+			if err := manager.Logout(p.Name); err != nil {
+				return fmt.Errorf("logout profile %s: %w", p.Name, err)
+			}
+			if _, err := store.Delete(p.Name); err != nil {
+				return fmt.Errorf("remove profile %s: %w", p.Name, err)
+			}
 		}
 		if outfmt.IsJSON(ctx) {
 			return outfmt.WriteJSON(os.Stdout, map[string]any{"logout": "all", "removed": len(profiles)})
@@ -660,7 +692,7 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 		return outfmt.WriteJSON(os.Stdout, map[string]any{"profiles": profiles})
 	}
 	if len(profiles) == 0 {
-		fmt.Fprintln(os.Stdout, "No profiles configured. Run `mog auth login` to get started.")
+		fmt.Fprintln(os.Stdout, "No profiles configured. Run `m365cli auth login` to get started.")
 		return nil
 	}
 
@@ -689,10 +721,10 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 func (c *AuthUpdateCmd) Run(ctx context.Context) error {
 	flags := rootFlagsFromContext(ctx)
 	if flags != nil && flags.NoInput {
-		return usage("`mog auth update` requires interactive input")
+		return usage("`m365cli auth update` requires interactive input")
 	}
 	if !isTerminal(os.Stdin) {
-		return usage("`mog auth update` requires an interactive terminal")
+		return usage("`m365cli auth update` requires an interactive terminal")
 	}
 
 	store := newProfileStore()
@@ -811,7 +843,7 @@ func (c *AuthUpdateCmd) Run(ctx context.Context) error {
 
 			fmt.Fprintf(os.Stdout, "%s Updated auth settings for profile %s\n", theme.ok("✓"), updated.Name)
 			if changedAuth {
-				fmt.Fprintf(os.Stdout, "%s Run `mog auth login --profile %s ...` to refresh tokens for changed auth settings.\n", theme.warn("!"), updated.Name)
+				fmt.Fprintf(os.Stdout, "%s Run `m365cli auth login --profile %s ...` to refresh tokens for changed auth settings.\n", theme.warn("!"), updated.Name)
 			}
 			return nil
 		case "cancel":
@@ -844,7 +876,7 @@ func resolveProfileForUpdate(store profileStore, requested string) (config.Profi
 		return record, nil
 	}
 	if errors.Is(err, profile.ErrNoActiveProfile) {
-		return config.ProfileRecord{}, usage("no active profile. Use `mog auth use <profile>` or pass --profile")
+		return config.ProfileRecord{}, usage("no active profile. Use `m365cli auth use <profile>` or pass --profile")
 	}
 
 	return config.ProfileRecord{}, err
@@ -1009,4 +1041,29 @@ func rootProfileOverride(ctx context.Context) string {
 		return strings.TrimSpace(flags.Profile)
 	}
 	return ""
+}
+
+// AuthCheckCmd verifies the live identity without sending mail or writing data.
+type AuthCheckCmd struct{}
+
+func (c *AuthCheckCmd) Run(ctx context.Context) error {
+	selected, err := profile.NewStore().Resolve(rootProfileOverride(ctx))
+	if err != nil {
+		return err
+	}
+	if normalizeAuthMode(selected.AuthMode) != profile.AuthModeDelegated {
+		return usage("auth check requires a delegated profile")
+	}
+	manager := auth.NewManager()
+	client := graph.NewClient(func(ctx context.Context, scopes []string) (string, error) {
+		return manager.AcquireDelegatedToken(ctx, selected.Name, selected.ClientID, selected.Authority, scopes, selected.AccountID, selected.TenantID)
+	})
+	var identity map[string]any
+	if err := client.DoJSON(ctx, "GET", "/me", nil, nil, []string{"User.Read"}, &identity); err != nil {
+		return err
+	}
+	if selected.AccountID != "" && !strings.EqualFold(fmt.Sprint(identity["id"]), selected.AccountID) {
+		return errors.New("Microsoft Graph identity does not match selected profile")
+	}
+	return outfmt.WriteJSON(os.Stdout, map[string]any{"profile": selected.Name, "verified": true, "identity": identity})
 }

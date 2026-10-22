@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/auth"
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/auth"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 func setTempUserConfigEnv(t *testing.T) string {
@@ -51,6 +51,7 @@ func TestSetTempUserConfigEnvIsolatesUserDirs(t *testing.T) {
 }
 
 type fakeAuthManager struct {
+	logoutErr        error
 	delegatedAccount auth.AccountInfo
 	delegatedInput   auth.DelegatedLoginInput
 	appOnlyInput     auth.AppOnlyLoginInput
@@ -71,7 +72,7 @@ func (m *fakeAuthManager) LoginAppOnly(_ context.Context, input auth.AppOnlyLogi
 }
 
 func (m *fakeAuthManager) Logout(string) error {
-	return nil
+	return m.logoutErr
 }
 
 func TestAuthLoginNonInteractiveRequiresFlags(t *testing.T) {
@@ -396,4 +397,78 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// Adding a second account must not redirect commands using the existing default.
+func TestLoginSecondAccountPreservesDefault(t *testing.T) {
+	setTempUserConfigEnv(t)
+	store := profile.NewStore()
+	if err := store.Upsert(config.ProfileRecord{Name: "personal", Audience: "consumer", AuthMode: "delegated", ClientID: "client", AccountID: "old"}, true); err != nil {
+		t.Fatal(err)
+	}
+	previous := newAuthManager
+	newAuthManager = func() authManager {
+		return &fakeAuthManager{delegatedAccount: auth.AccountInfo{AccountID: "work-id", TenantID: "tenant"}}
+	}
+	defer func() { newAuthManager = previous }()
+	if err := runAuthLogin(context.Background(), authLoginParams{Profile: "work", Audience: "enterprise", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true}); err != nil {
+		t.Fatal(err)
+	}
+	active, err := store.Active()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.Name != "personal" {
+		t.Fatalf("adding account switched default to %s", active.Name)
+	}
+}
+
+func TestLoginRejectsInvalidOrUnidentifiedAccount(t *testing.T) {
+	for _, tc := range []struct {
+		name, profileName, accountID string
+		wantAuth                     bool
+	}{
+		{"invalid profile rejected before consent", "../bad", "account-id", false},
+		{"missing account identity cannot report success", "work", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setTempUserConfigEnv(t)
+			manager := &fakeAuthManager{delegatedAccount: auth.AccountInfo{AccountID: tc.accountID}}
+			previous := newAuthManager
+			newAuthManager = func() authManager { return manager }
+			defer func() { newAuthManager = previous }()
+			err := runAuthLogin(context.Background(), authLoginParams{Profile: tc.profileName, Audience: "enterprise", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true})
+			if err == nil {
+				t.Fatal("invalid login reported success")
+			}
+			if called := manager.delegatedInput.ProfileName != ""; called != tc.wantAuth {
+				t.Fatalf("auth called=%v want=%v", called, tc.wantAuth)
+			}
+			profiles, err := profile.NewStore().List()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(profiles) != 0 {
+				t.Fatal("invalid profile persisted")
+			}
+		})
+	}
+}
+
+func TestLogoutAllPreservesProfileWhenCredentialRemovalFails(t *testing.T) {
+	setTempUserConfigEnv(t)
+	store := profile.NewStore()
+	if err := store.Upsert(config.ProfileRecord{Name: "work", ClientID: "client", Audience: "enterprise", AuthMode: "delegated"}, true); err != nil {
+		t.Fatal(err)
+	}
+	previous := newAuthManager
+	newAuthManager = func() authManager { return &fakeAuthManager{logoutErr: errors.New("credential store unavailable")} }
+	defer func() { newAuthManager = previous }()
+	command := AuthLogoutCmd{All: true}
+	if err := command.Run(context.Background()); err == nil {
+		t.Fatal("reported logout success after credential removal failed")
+	}
+	if _, ok, err := store.Get("work"); err != nil || !ok {
+		t.Fatalf("failed logout must retain profile for recovery: found=%v err=%v", ok, err)
+	}
 }

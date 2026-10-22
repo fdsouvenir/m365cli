@@ -47,8 +47,8 @@ func TestAddNormalizedCustomFieldsAddsSortedCustomSlice(t *testing.T) {
 		"id": "contact-id",
 		"categories": []any{
 			"Friends",
-			"mog.custom.team=platform",
-			"mog.custom.region=NA",
+			"m365cli.custom.team=platform",
+			"m365cli.custom.region=NA",
 		},
 	}
 

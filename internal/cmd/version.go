@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
 )
 
 var (
-	version = "0.0.2"
+	version = "1.0.0-rc.1"
 	commit  = ""
 	date    = ""
 )
@@ -27,15 +27,15 @@ func VersionString() string {
 	d := strings.TrimSpace(date)
 
 	if c == "" && d == "" {
-		return fmt.Sprintf("mog version %s", v)
+		return fmt.Sprintf("m365cli version %s", v)
 	}
 	if c == "" {
-		return fmt.Sprintf("mog version %s (%s)", v, d)
+		return fmt.Sprintf("m365cli version %s (%s)", v, d)
 	}
 	if d == "" {
-		return fmt.Sprintf("mog version %s (%s)", v, c)
+		return fmt.Sprintf("m365cli version %s (%s)", v, c)
 	}
-	return fmt.Sprintf("mog version %s (%s %s)", v, c, d)
+	return fmt.Sprintf("m365cli version %s (%s %s)", v, c, d)
 }
 
 type VersionCmd struct{}

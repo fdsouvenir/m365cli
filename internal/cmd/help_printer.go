@@ -12,7 +12,7 @@ import (
 )
 
 func helpOptions() kong.HelpOptions {
-	mode := strings.ToLower(strings.TrimSpace(os.Getenv("MOG_HELP")))
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("M365CLI_HELP")))
 	return kong.HelpOptions{NoExpandSubcommands: mode != "full"}
 }
 
@@ -168,44 +168,44 @@ func trimTrailingBlankLines(lines []string) []string {
 func helpExamplesFor(selectedPath string) []string {
 	if strings.TrimSpace(selectedPath) == "" {
 		return []string{
-			"$ mog auth",
-			"$ mog mail list --max 10",
-			"$ mog onedrive ls --path /",
+			"$ m365cli auth",
+			"$ m365cli mail list --max 10",
+			"$ m365cli onedrive ls --path /",
 		}
 	}
 
 	switch selectedPath {
 	case "auth login":
 		return []string{
-			"$ mog auth login",
-			"$ mog auth login --profile work --audience enterprise --client-id <id> --scope-workloads mail,calendar",
+			"$ m365cli auth login",
+			"$ m365cli auth login --profile work --audience enterprise --client-id <id> --scope-workloads mail,calendar",
 		}
 	case "auth update":
 		return []string{
-			"$ mog auth update",
-			"$ mog auth update --profile work",
+			"$ m365cli auth update",
+			"$ m365cli auth update --profile work",
 		}
 	case "auth app":
 		return []string{
-			"$ mog auth app",
-			"$ mog auth login --profile work-app --audience enterprise --mode app-only --client-id <id> --tenant <tenant> --client-secret-env MOG_CLIENT_SECRET",
+			"$ m365cli auth app",
+			"$ m365cli auth login --profile work-app --audience enterprise --mode app-only --client-id <id> --tenant <tenant> --client-secret-env M365CLI_CLIENT_SECRET",
 		}
 	case "mail list":
 		return []string{
-			"$ mog mail list --max 20",
-			"$ mog mail list --query \"from:alerts@example.com\"",
+			"$ m365cli mail list --max 20",
+			"$ m365cli mail list --query \"from:alerts@example.com\"",
 		}
 	case "mail send":
 		return []string{
-			"$ mog mail send --to alex@example.com --subject \"Hello\" --body \"Hi there\"",
+			"$ m365cli mail send --to alex@example.com --subject \"Hello\" --body \"Hi there\"",
 		}
 	case "calendar list":
 		return []string{
-			"$ mog calendar list --from 2026-02-12 --to 2026-02-19",
+			"$ m365cli calendar list --from 2026-02-12 --to 2026-02-19",
 		}
 	case "onedrive ls":
 		return []string{
-			"$ mog onedrive ls --path /Documents --max 50",
+			"$ m365cli onedrive ls --path /Documents --max 50",
 		}
 	}
 
@@ -215,7 +215,7 @@ func helpExamplesFor(selectedPath string) []string {
 func helpLearnMoreLines(appName string, selectedPath string) []string {
 	name := strings.TrimSpace(appName)
 	if name == "" {
-		name = "mog"
+		name = "m365cli"
 	}
 
 	commandHelp := fmt.Sprintf(`Use "%s <command> --help" for more information about a command.`, name)
@@ -225,7 +225,7 @@ func helpLearnMoreLines(appName string, selectedPath string) []string {
 
 	return []string{
 		commandHelp,
-		"Read the README at https://github.com/jaredpalmer/mogcli#readme",
+		"Read the README at https://github.com/fdsouvenir/m365cli#readme",
 	}
 }
 

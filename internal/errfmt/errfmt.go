@@ -9,8 +9,8 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
-	"github.com/jaredpalmer/mogcli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/profile"
 )
 
 var aadstsRe = regexp.MustCompile(`AADSTS\d+`)
@@ -35,11 +35,11 @@ func Format(err error) string {
 	}
 
 	if errors.Is(err, profile.ErrProfileNotFound) {
-		return prefixError("Profile not found. Run `mog auth accounts` to list available profiles")
+		return prefixError("Profile not found. Run `m365cli auth accounts` to list available profiles")
 	}
 
 	if errors.Is(err, profile.ErrNoActiveProfile) {
-		return prefixError("No active profile. Run `mog auth use <profile>` or `mog auth login ...`")
+		return prefixError("No active profile. Run `m365cli auth use <profile>` or `m365cli auth login ...`")
 	}
 
 	var apiErr *graph.APIError

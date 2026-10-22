@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/secrets"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/secrets"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -59,6 +60,9 @@ func TestAcquireDelegatedTokenReusesCachedTokenWhenScopesSatisfied(t *testing.T)
 }
 
 func TestAcquireDelegatedTokenRefreshesWhenRequiredScopeMissing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
+	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -257,8 +261,12 @@ func setTempSecretsHome(t *testing.T) {
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("MOG_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 }
 
 func idTokenFor(t *testing.T, accountID string, tenantID string) string {
@@ -283,6 +291,9 @@ func idTokenFor(t *testing.T, accountID string, tenantID string) string {
 }
 
 func TestAcquireDelegatedTokenRefreshIncludesClientSecretWhenStored(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
+	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -354,6 +365,9 @@ func TestAcquireDelegatedTokenRefreshIncludesClientSecretWhenStored(t *testing.T
 }
 
 func TestAcquireDelegatedTokenRefreshOmitsClientSecretWhenNotStored(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
+	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -416,6 +430,9 @@ func TestAcquireDelegatedTokenRefreshOmitsClientSecretWhenNotStored(t *testing.T
 }
 
 func TestLoginDelegatedStoresClientSecret(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
+	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -589,11 +606,11 @@ func TestScopeSetContainsAllMatchesFullURLScopes(t *testing.T) {
 	}
 }
 
-func TestScopeSetContainsAllDefaultCoversAll(t *testing.T) {
+func TestScopeSetContainsAllDefaultDoesNotProveConsent(t *testing.T) {
 	granted := []string{"openid", "profile", "https://graph.microsoft.com/.default"}
 	required := []string{"Mail.Read", "Calendars.ReadWrite"}
-	if !scopeSetContainsAll(granted, required) {
-		t.Fatal("expected .default scope to cover all required scopes")
+	if scopeSetContainsAll(granted, required) {
+		t.Fatal(".default is not evidence of consented permissions")
 	}
 }
 

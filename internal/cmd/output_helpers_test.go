@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/ui"
+	"github.com/fdsouvenir/m365cli/internal/ui"
 )
 
 func TestPrintNextPageHint(t *testing.T) {

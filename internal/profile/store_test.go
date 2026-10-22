@@ -3,7 +3,7 @@ package profile
 import (
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/config"
 )
 
 func TestNormalizeName(t *testing.T) {

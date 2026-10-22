@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/jaredpalmer/mogcli/internal/ui"
+	"github.com/fdsouvenir/m365cli/internal/ui"
 )
 
 type rootFlagsContextKey struct{}

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/jaredpalmer/mogcli/internal/cmd"
+	"github.com/fdsouvenir/m365cli/internal/cmd"
 )
 
 func main() {

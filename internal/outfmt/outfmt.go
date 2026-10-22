@@ -28,8 +28,8 @@ func FromFlags(jsonOut bool, plainOut bool) (Mode, error) {
 
 func FromEnv() Mode {
 	return Mode{
-		JSON:  envBool("MOG_JSON"),
-		Plain: envBool("MOG_PLAIN"),
+		JSON:  envBool("M365CLI_JSON"),
+		Plain: envBool("M365CLI_PLAIN"),
 	}
 }
 

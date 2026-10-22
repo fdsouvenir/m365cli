@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 var listTaskScopes = []string{"Tasks.Read"}
@@ -154,5 +154,6 @@ func trimPage(items []map[string]any, next string, max int) ([]map[string]any, s
 	if max <= 0 || len(items) <= max {
 		return items, next
 	}
-	return items[:max], next
+	// The continuation skips the complete page, so retain every returned row.
+	return items, next
 }

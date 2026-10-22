@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 var listOneDriveScopes = []string{"Files.Read"}

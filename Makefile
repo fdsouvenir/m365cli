@@ -12,23 +12,23 @@ DATE = $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 endif
 .DEFAULT_GOAL := build
 
-.PHONY: build mog mog-help help fmt fmt-check test ci vendor wam-build
+.PHONY: build m365cli m365cli-help help fmt fmt-check test ci vendor wam-build
 
 BIN_DIR := $(CURDIR)/bin
 ifeq ($(OS),Windows_NT)
-BIN := $(BIN_DIR)/mog.exe
-WAM_BIN := $(BIN_DIR)/mog-wam.exe
+BIN := $(BIN_DIR)/m365cli.exe
+WAM_BIN := $(BIN_DIR)/m365cli-wam.exe
 else
-BIN := $(BIN_DIR)/mog
+BIN := $(BIN_DIR)/m365cli
 endif
-CMD := ./cmd/mog
+CMD := ./cmd/m365cli
 GO := go
 GOFLAGS ?= -mod=vendor
 TEST_PKGS := ./cmd/... ./internal/...
 
-LDFLAGS = -X github.com/jaredpalmer/mogcli/internal/cmd.version=$(VERSION) -X github.com/jaredpalmer/mogcli/internal/cmd.commit=$(COMMIT) -X github.com/jaredpalmer/mogcli/internal/cmd.date=$(DATE)
+LDFLAGS = -X github.com/fdsouvenir/m365cli/internal/cmd.version=$(VERSION) -X github.com/fdsouvenir/m365cli/internal/cmd.commit=$(COMMIT) -X github.com/fdsouvenir/m365cli/internal/cmd.date=$(DATE)
 
-ifneq ($(filter mog,$(MAKECMDGOALS)),)
+ifneq ($(filter m365cli,$(MAKECMDGOALS)),)
 RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 $(eval $(RUN_ARGS):;@:)
 endif
@@ -42,7 +42,7 @@ else
 endif
 	@$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BIN) $(CMD)
 
-mog: build
+m365cli: build
 ifeq ($(OS),Windows_NT)
 	@if not "$(RUN_ARGS)"=="" ("$(BIN)" $(RUN_ARGS)) else if "$(ARGS)"=="" ("$(BIN)" --help) else ("$(BIN)" $(ARGS))
 else
@@ -55,10 +55,10 @@ else
 	fi
 endif
 
-mog-help: build
+m365cli-help: build
 	@$(BIN) --help
 
-help: mog-help
+help: m365cli-help
 
 fmt:
 	@gofmt -w cmd internal
@@ -88,7 +88,7 @@ wam-build:
 ifeq ($(OS),Windows_NT)
 	@if not exist "$(BIN_DIR)" mkdir "$(BIN_DIR)"
 	@uv --version >nul 2>&1 || (echo wam-build requires uv on PATH && exit /b 1)
-	@uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name mog-wam --distpath $(BIN_DIR) scripts/wam/wam_auth.py
+	@uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam --distpath $(BIN_DIR) scripts/wam/wam_auth.py
 else
 	@echo "wam-build: skipped (Windows-only target)"
 endif

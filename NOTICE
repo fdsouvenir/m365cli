@@ -1,3 +1,6 @@
+m365cli is a fork of https://github.com/jaredpalmer/mogcli.
+Original authors retain their copyright.
+
 This project incorporates and adapts portions of code from:
 - https://github.com/steipete/gogcli (MIT License)
 

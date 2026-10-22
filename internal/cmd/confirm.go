@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jaredpalmer/mogcli/internal/input"
+	"github.com/fdsouvenir/m365cli/internal/input"
 )
 
 func confirmDestructive(ctx context.Context, flags *RootFlags, action string) error {

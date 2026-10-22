@@ -1,47 +1,47 @@
 # Adapted from opensrc/repos/github.com/steipete/gogcli/.goreleaser.yaml.
 version: 2
 
-project_name: mogcli
+project_name: m365cli
 
 changelog:
   disable: true
 
 builds:
-  - id: mog
-    main: ./cmd/mog
-    binary: mog
+  - id: m365cli
+    main: ./cmd/m365cli
+    binary: m365cli
     ldflags: >-
       -s -w
-      -X github.com/jaredpalmer/mogcli/internal/cmd.version={{ .Tag }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.commit={{ .ShortCommit }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.date={{ .Date }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.version={{ .Tag }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.commit={{ .ShortCommit }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
     env:
       - CGO_ENABLED=0
       - GOFLAGS=-mod=vendor
     targets:
       - linux_amd64
       - linux_arm64
-  - id: mog_windows
-    main: ./cmd/mog
-    binary: mog
+  - id: m365cli_windows
+    main: ./cmd/m365cli
+    binary: m365cli
     ldflags: >-
       -s -w
-      -X github.com/jaredpalmer/mogcli/internal/cmd.version={{ .Tag }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.commit={{ .ShortCommit }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.date={{ .Date }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.version={{ .Tag }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.commit={{ .ShortCommit }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
     env:
       - CGO_ENABLED=0
       - GOFLAGS=-mod=vendor
     targets:
       - windows_amd64
-  - id: mog_darwin
-    main: ./cmd/mog
-    binary: mog
+  - id: m365cli_darwin
+    main: ./cmd/m365cli
+    binary: m365cli
     ldflags: >-
       -s -w
-      -X github.com/jaredpalmer/mogcli/internal/cmd.version={{ .Tag }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.commit={{ .ShortCommit }}
-      -X github.com/jaredpalmer/mogcli/internal/cmd.date={{ .Date }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.version={{ .Tag }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.commit={{ .ShortCommit }}
+      -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
     env:
       - CGO_ENABLED=1
       - GOFLAGS=-mod=vendor
@@ -53,40 +53,31 @@ builds:
 
 archives:
   - id: default
-    builds:
-      - mog
-      - mog_darwin
-    format: tar.gz
+    ids:
+      - m365cli
+      - m365cli_darwin
+    files:
+      - README.md
+      - NOTICE
+      - skills/**/*
+    formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   - id: windows
-    builds:
-      - mog_windows
-    format: zip
+    ids:
+      - m365cli_windows
+    formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
-      # mog-wam.exe (amd64) must be pre-built by CI before goreleaser runs.
-      # Build with: uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name mog-wam scripts/wam/wam_auth.py
-      - src: dist/wam/mog-wam.exe
+      - README.md
+      - NOTICE
+      - skills/**/*
+      # m365cli-wam.exe (amd64) must be pre-built by CI before goreleaser runs.
+      # Build with: uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
+      - src: build/wam/m365cli-wam.exe
         strip_parent: true
 
 checksum:
   name_template: checksums.txt
 
-brews:
-  - name: mogcli
-    directory: Formula
-    homepage: "https://github.com/jaredpalmer/mogcli"
-    description: "Microsoft 365 in your terminal"
-    license: "MIT"
-    install: |
-      bin.install "mog"
-    test: |
-      system "#{bin}/mog", "--help"
-    repository:
-      owner: jaredpalmer
-      name: homebrew-tap
-      branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: github-actions[bot]
-      email: 41898282+github-actions[bot]@users.noreply.github.com
+release:
+  prerelease: auto

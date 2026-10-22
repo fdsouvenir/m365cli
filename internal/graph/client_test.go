@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -75,3 +76,30 @@ func TestDoShortCircuitsWhenCircuitBreakerOpen(t *testing.T) {
 		t.Fatalf("expected token provider not to be called, got %d calls", tokenCalls)
 	}
 }
+
+func TestResolveURLRejectsDowngradeAndUserinfo(t *testing.T) {
+	c := &Client{BaseURL: "https://graph.microsoft.com/v1.0"}
+	for _, target := range []string{"http://graph.microsoft.com/v1.0/me", "https://user@graph.microsoft.com/v1.0/me"} {
+		if _, err := c.resolveURL(target, nil); err == nil {
+			t.Errorf("accepted unsafe continuation %s", target)
+		}
+	}
+}
+
+func TestWriteServerErrorDoesNotRetry(t *testing.T) {
+	calls := 0
+	c := NewClient(func(context.Context, []string) (string, error) { return "token", nil })
+	c.MaxRetries5xx = 1
+	c.HTTPClient = &http.Client{Transport: graphRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{StatusCode: 500, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"error":{"message":"uncertain write"}}`))}, nil
+	})}
+	_, _, err := c.Do(context.Background(), "POST", "/me/sendMail", nil, map[string]any{}, nil, nil)
+	if err == nil || calls != 1 {
+		t.Fatalf("write must not be repeated after uncertain server failure: calls=%d err=%v", calls, err)
+	}
+}
+
+type graphRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f graphRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

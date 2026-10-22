@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/profile"
-	"github.com/jaredpalmer/mogcli/internal/secrets"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/profile"
+	"github.com/fdsouvenir/m365cli/internal/secrets"
 )
 
 var (
@@ -72,7 +72,7 @@ func tokenCacheKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:cache:" + normalized, nil
+	return "m365cli:cache:" + normalized, nil
 }
 
 func appSecretKey(profileName string) (string, error) {
@@ -80,7 +80,7 @@ func appSecretKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:appsecret:" + normalized, nil
+	return "m365cli:appsecret:" + normalized, nil
 }
 
 func delegatedSecretKey(profileName string) (string, error) {
@@ -88,7 +88,7 @@ func delegatedSecretKey(profileName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid profile name: %w", err)
 	}
-	return "mog:delegatedsecret:" + normalized, nil
+	return "m365cli:delegatedsecret:" + normalized, nil
 }
 
 func graphDefaultScope() string {
@@ -335,15 +335,11 @@ func (m *Manager) loginDelegatedRefreshToken(ctx context.Context, input Delegate
 		writeMessage("Authenticating with refresh token...")
 	}
 
-	// Build the token refresh request. Use .default scope so the token
-	// inherits all permissions already consented on the app registration.
-	// Individual scopes (Mail.Read, etc.) can fail with AADSTS65001 if
-	// they weren't part of the original consent flow.
 	req := url.Values{}
 	req.Set("grant_type", "refresh_token")
 	req.Set("client_id", input.ClientID)
 	req.Set("refresh_token", refreshToken)
-	req.Set("scope", "offline_access openid profile "+graphDefaultScope())
+	req.Set("scope", strings.Join(input.Scopes, " "))
 
 	// Include client_secret for confidential clients.
 	if secret := strings.TrimSpace(input.Secret); secret != "" {
@@ -466,7 +462,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestAccountID == "" && requestUsername == "" {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s is missing account identity. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s is missing account identity. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -483,7 +479,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 		Username:  requestUsername,
 	})
 	if err != nil {
-		return "", fmt.Errorf("WAM silent token acquisition failed: %w. Run `mog auth login` to sign in again", err)
+		return "", fmt.Errorf("WAM silent token acquisition failed: %w. Run `m365cli auth login` to sign in again", err)
 	}
 	if strings.TrimSpace(resp.AccessToken) == "" {
 		return "", errors.New("WAM silent token response missing access_token")
@@ -491,7 +487,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestAccountID != "" && strings.TrimSpace(resp.AccountID) != "" && !strings.EqualFold(requestAccountID, strings.TrimSpace(resp.AccountID)) {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"WAM returned a different account for profile %s. Run `mog auth login --profile %s ...` to sign in again.",
+				"WAM returned a different account for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -501,7 +497,7 @@ func (m *Manager) acquireDelegatedTokenWAM(
 	if requestUsername != "" && strings.TrimSpace(resp.Username) != "" && !strings.EqualFold(requestUsername, strings.TrimSpace(resp.Username)) {
 		return "", errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"WAM returned a different user for profile %s. Run `mog auth login --profile %s ...` to sign in again.",
+				"WAM returned a different user for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -535,6 +531,9 @@ func (m *Manager) acquireDelegatedTokenWAM(
 		return "", err
 	}
 
+	if updated.AccessToken == "" || !scopeStringCoversRequiredScopes(updated.Scope, scopes) {
+		return "", errors.New("Microsoft did not grant the required permissions; sign in again with the requested workloads")
+	}
 	return updated.AccessToken, nil
 }
 
@@ -552,14 +551,7 @@ func (m *Manager) acquireDelegatedTokenRefresh(
 		return "", ErrMissingRefreshToken
 	}
 
-	// Use .default scope for refresh when the cached token was obtained via
-	// .default. This avoids AADSTS65001 consent errors when the original
-	// token was granted with .default but individual scopes (Mail.Read, etc.)
-	// were never individually consented.
 	refreshScope := strings.Join(scopes, " ")
-	if strings.Contains(strings.ToLower(cache.Scope), "/.default") {
-		refreshScope = "offline_access openid profile " + graphDefaultScope()
-	}
 
 	req := url.Values{}
 	req.Set("grant_type", "refresh_token")
@@ -616,6 +608,9 @@ func (m *Manager) acquireDelegatedTokenRefresh(
 		return "", err
 	}
 
+	if updated.AccessToken == "" || !scopeStringCoversRequiredScopes(updated.Scope, scopes) {
+		return "", errors.New("Microsoft did not grant the required permissions; sign in again with the requested workloads")
+	}
 	return updated.AccessToken, nil
 }
 
@@ -692,8 +687,12 @@ func (m *Manager) Logout(profileName string) error {
 	}
 
 	// Clean up delegated client secret if stored.
-	if delSecretKey, err := delegatedSecretKey(profileName); err == nil {
-		_ = secrets.DeleteSecret(delSecretKey)
+	delSecretKey, err := delegatedSecretKey(profileName)
+	if err != nil {
+		return err
+	}
+	if err := secrets.DeleteSecret(delSecretKey); err != nil {
+		return err
 	}
 
 	return nil
@@ -718,7 +717,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s is invalid. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s is invalid. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -733,7 +732,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s does not match the saved account. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s does not match the saved account. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -747,7 +746,7 @@ func (m *Manager) validateCachedDelegatedIdentity(
 		}
 		return errfmt.NewUserFacingError(
 			fmt.Sprintf(
-				"cached delegated login for profile %s does not match the saved tenant. Run `mog auth login --profile %s ...` to sign in again.",
+				"cached delegated login for profile %s does not match the saved tenant. Run `m365cli auth login --profile %s ...` to sign in again.",
 				profileName,
 				profileName,
 			),
@@ -969,11 +968,19 @@ func (m *Manager) doFormWithStatus(ctx context.Context, endpoint string, form ur
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := m.httpClient().Do(req)
+	client := *m.httpClient()
+	if client.Timeout == 0 {
+		client.Timeout = 30 * time.Second
+	}
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("oauth request: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		return nil, resp.StatusCode, errors.New("OAuth redirects are not permitted")
+	}
 
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -5,8 +5,9 @@ opensrc/
 bin/
 dist/
 build/
-mog
-mog-wam.spec
+/m365cli
+m365cli-wam.spec
 
 # secrets
 .env
+__pycache__/

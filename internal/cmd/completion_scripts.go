@@ -20,22 +20,22 @@ func completionScript(shell string) (string, error) {
 func bashCompletionScript() string {
 	return `#!/usr/bin/env bash
 
-_mog_complete() {
+_m365cli_complete() {
   local IFS=$'\n'
   local completions
-  completions=$(mog __complete --cword "$COMP_CWORD" -- "${COMP_WORDS[@]}")
+  completions=$(m365cli __complete --cword "$COMP_CWORD" -- "${COMP_WORDS[@]}")
   COMPREPLY=()
   if [[ -n "$completions" ]]; then
     COMPREPLY=( $completions )
   fi
 }
 
-complete -F _mog_complete mog
+complete -F _m365cli_complete m365cli
 `
 }
 
 func zshCompletionScript() string {
-	return `#compdef mog
+	return `#compdef m365cli
 
 autoload -Uz bashcompinit
 bashcompinit
@@ -43,26 +43,26 @@ bashcompinit
 }
 
 func fishCompletionScript() string {
-	return `function __mog_complete
+	return `function __m365cli_complete
   set -l words (commandline -opc)
   set -l cur (commandline -ct)
   set -l cword (count $words)
   if test -n "$cur"
     set cword (math $cword - 1)
   end
-  mog __complete --cword $cword -- $words
+  m365cli __complete --cword $cword -- $words
 end
 
-complete -c mog -f -a "(__mog_complete)"
+complete -c m365cli -f -a "(__m365cli_complete)"
 `
 }
 
 func powerShellCompletionScript() string {
-	return `Register-ArgumentCompleter -CommandName mog -ScriptBlock {
+	return `Register-ArgumentCompleter -CommandName m365cli -ScriptBlock {
   param($commandName, $wordToComplete, $cursorPosition, $commandAst, $fakeBoundParameter)
   $elements = $commandAst.CommandElements | ForEach-Object { $_.ToString() }
   $cword = $elements.Count - 1
-  $completions = mog __complete --cword $cword -- $elements
+  $completions = m365cli __complete --cword $cword -- $elements
   foreach ($completion in $completions) {
     [System.Management.Automation.CompletionResult]::new($completion, $completion, 'ParameterValue', $completion)
   }

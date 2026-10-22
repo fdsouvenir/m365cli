@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 func TestListUsesPageTokenURL(t *testing.T) {
@@ -41,8 +41,8 @@ func TestListUsesPageTokenURL(t *testing.T) {
 	if requests != 1 {
 		t.Fatalf("expected one request, got %d", requests)
 	}
-	if len(items) != 1 {
-		t.Fatalf("expected one item due to max cap, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("must retain complete server page so resume cannot skip an item, got %d", len(items))
 	}
 	if next != serverURL+"/resume?state=next" {
 		t.Fatalf("unexpected next link: %s", next)

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jaredpalmer/mogcli/internal/config"
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
+	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
 )
 
 type ConfigCmd struct {

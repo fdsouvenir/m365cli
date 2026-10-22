@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/jaredpalmer/mogcli/internal/outfmt"
-	groupsvc "github.com/jaredpalmer/mogcli/internal/services/groups"
+	"github.com/fdsouvenir/m365cli/internal/outfmt"
+	groupsvc "github.com/fdsouvenir/m365cli/internal/services/groups"
 )
 
 type GroupsCmd struct {

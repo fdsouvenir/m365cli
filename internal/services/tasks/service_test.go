@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jaredpalmer/mogcli/internal/errfmt"
-	"github.com/jaredpalmer/mogcli/internal/graph"
+	"github.com/fdsouvenir/m365cli/internal/errfmt"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
 func TestListTasksUsesPageTokenURL(t *testing.T) {
@@ -42,8 +42,8 @@ func TestListTasksUsesPageTokenURL(t *testing.T) {
 	if requests != 1 {
 		t.Fatalf("expected one request, got %d", requests)
 	}
-	if len(items) != 1 {
-		t.Fatalf("expected one item due to max cap, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("must retain full server page for lossless continuation, got %d", len(items))
 	}
 	if next != serverURL+"/tasks/next?state=next" {
 		t.Fatalf("unexpected next link: %s", next)

@@ -14,9 +14,17 @@ var delegatedScopeWorkloadOrder = []string{
 	"tasks",
 	"onedrive",
 	"groups",
+	"excel",
+	"mail-read",
+	"mail-send",
+	"mail-write",
 }
 
 var delegatedScopeWorkloadMap = map[string][]string{
+	"excel":      {"Files.ReadWrite"},
+	"mail-read":  {"Mail.Read"},
+	"mail-send":  {"Mail.Send"},
+	"mail-write": {"Mail.ReadWrite"},
 	"mail": {
 		"Mail.Read",
 		"Mail.Send",
@@ -44,6 +52,7 @@ var delegatedScopeWorkloadMap = map[string][]string{
 }
 
 var AllDelegatedWorkloadScopes = []string{
+	"Mail.ReadWrite",
 	"Mail.Read",
 	"Mail.Send",
 	"Calendars.Read",

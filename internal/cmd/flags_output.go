@@ -1,7 +1,7 @@
 package cmd
 
 type OutputPathFlag struct {
-	Path string `name:"out" aliases:"output" help:"Output file path (default: mogcli config dir)"`
+	Path string `name:"out" aliases:"output" help:"Output file path (default: m365cli config dir)"`
 }
 
 type OutputPathRequiredFlag struct {

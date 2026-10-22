@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const AppName = "mogcli"
+const AppName = "m365cli"
 
 func Dir() (string, error) {
 	base, err := os.UserConfigDir()
