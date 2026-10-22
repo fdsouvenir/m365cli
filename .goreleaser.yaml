@@ -53,19 +53,19 @@ builds:
 
 archives:
   - id: default
-    builds:
+    ids:
       - m365cli
       - m365cli_darwin
     files:
       - README.md
       - NOTICE
       - skills/**/*
-    format: tar.gz
+    formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   - id: windows
-    builds:
+    ids:
       - m365cli_windows
-    format: zip
+    formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -78,3 +78,6 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+release:
+  prerelease: auto
