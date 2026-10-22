@@ -135,13 +135,8 @@ func scopeSetContainsAll(granted []string, required []string) bool {
 		}
 	}
 
-	// If the granted set contains .default, all Graph scopes are covered.
-	if _, ok := grantedSet["https://graph.microsoft.com/.default"]; ok {
-		return true
-	}
-
 	for _, scope := range required {
-		if _, ok := grantedSet[strings.ToLower(strings.TrimSpace(scope))]; !ok {
+		if _, ok := grantedSet[stripGraphPrefix(strings.ToLower(strings.TrimSpace(scope)))]; !ok {
 			return false
 		}
 	}

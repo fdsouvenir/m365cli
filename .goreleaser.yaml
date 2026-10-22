@@ -21,7 +21,7 @@ builds:
     targets:
       - linux_amd64
       - linux_arm64
-  - id: mog_windows
+  - id: m365cli_windows
     main: ./cmd/m365cli
     binary: m365cli
     ldflags: >-
@@ -34,7 +34,7 @@ builds:
       - GOFLAGS=-mod=vendor
     targets:
       - windows_amd64
-  - id: mog_darwin
+  - id: m365cli_darwin
     main: ./cmd/m365cli
     binary: m365cli
     ldflags: >-
@@ -55,15 +55,22 @@ archives:
   - id: default
     builds:
       - m365cli
-      - mog_darwin
+      - m365cli_darwin
+    files:
+      - README.md
+      - NOTICE
+      - skills/**/*
     format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   - id: windows
     builds:
-      - mog_windows
+      - m365cli_windows
     format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
+      - README.md
+      - NOTICE
+      - skills/**/*
       # m365cli-wam.exe (amd64) must be pre-built by CI before goreleaser runs.
       # Build with: uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
       - src: dist/wam/m365cli-wam.exe

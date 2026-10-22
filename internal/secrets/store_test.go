@@ -4,8 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"testing"
 	"strings"
+	"testing"
 
 	"github.com/fdsouvenir/m365cli/internal/config"
 )
@@ -15,6 +15,7 @@ func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 
 	key := "m365cli:test:key"
 	value := []byte("hello-world")
@@ -118,6 +119,7 @@ func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "auto")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 
 	restore := stubNativeKeychainFuncs(t)
 	nativeKeychainAvailableFunc = func() bool { return false }
@@ -248,14 +250,29 @@ func stubNativeKeychainFuncs(t *testing.T) func() {
 // Persisted headless credentials must not expose token plaintext; a wrong key
 // must not be accepted. Existing round-trip tests did not inspect disk bytes.
 func TestFileSecretEncryptedAtRest(t *testing.T) {
- t.Setenv("XDG_CONFIG_HOME", t.TempDir())
- t.Setenv("M365CLI_KEYRING_BACKEND", "file")
- t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
- value := []byte("distinct-refresh-token-for-regression")
- if err := SetSecret("regression", value); err != nil { t.Fatal(err) }
- path, err := secretPath("regression"); if err != nil { t.Fatal(err) }
- raw, err := os.ReadFile(path); if err != nil { t.Fatal(err) }
- if strings.Contains(string(raw), string(value)) { t.Fatal("credential stored in plaintext") }
- t.Setenv("M365CLI_KEYRING_PASSWORD", "wrong-password")
- if _, err := GetSecret("regression"); err == nil { t.Fatal("wrong key accepted") }
+	secretHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", secretHome)
+	t.Setenv("APPDATA", secretHome)
+	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
+	value := []byte("distinct-refresh-token-for-regression")
+	if err := SetSecret("regression", value); err != nil {
+		t.Fatal(err)
+	}
+	path, err := secretPath("regression")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), string(value)) {
+		t.Fatal("credential stored in plaintext")
+	}
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "wrong-password")
+	if _, err := GetSecret("regression"); err == nil {
+		t.Fatal("wrong key accepted")
+	}
 }

@@ -139,7 +139,7 @@ func (c *Client) doWithRetry(
 		}
 
 		if resp.StatusCode >= 500 {
-			if retries5xx >= c.MaxRetries5xx {
+			if (method != http.MethodGet && method != http.MethodHead) || retries5xx >= c.MaxRetries5xx {
 				apiErr := parseAPIError(resp.StatusCode, b)
 				return resp, b, true, apiErr
 			}
@@ -206,7 +206,31 @@ func (c *Client) doOnce(ctx context.Context, method string, path string, query u
 		}
 	}
 
-	resp, err := c.httpClient().Do(req)
+	client := *c.httpClient()
+	if client.Timeout == 0 {
+		client.Timeout = 60 * time.Second
+	}
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
+	if err == nil && resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		resp.Body.Close()
+		if method != http.MethodGet || !strings.HasSuffix(req.URL.Path, "/content") {
+			return nil, nil, errors.New("unexpected Graph redirect")
+		}
+		target, parseErr := resp.Location()
+		if parseErr != nil || target.Scheme != "https" || target.User != nil {
+			return nil, nil, errors.New("unsafe download redirect")
+		}
+		download, buildErr := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+		if buildErr != nil {
+			return nil, nil, buildErr
+		}
+		resp, err = client.Do(download)
+		if err == nil && resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			resp.Body.Close()
+			return nil, nil, errors.New("unexpected repeated download redirect")
+		}
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("request graph: %w", err)
 	}
@@ -232,6 +256,9 @@ func (c *Client) resolveURL(path string, query url.Values) (string, error) {
 		}
 		if !sameHost(base, u) {
 			return "", fmt.Errorf("cross-host URL is not allowed: %s", u.Host)
+		}
+		if u.Scheme != base.Scheme || u.User != nil || u.Fragment != "" {
+			return "", fmt.Errorf("unsafe continuation URL: scheme, userinfo or fragment")
 		}
 		if len(query) > 0 {
 			u.RawQuery = query.Encode()
@@ -277,12 +304,12 @@ func (c *Client) Paginate(ctx context.Context, path string, query url.Values, sc
 			for _, raw := range rawItems {
 				if item, ok := raw.(map[string]any); ok {
 					items = append(items, item)
-					if max > 0 && len(items) >= max {
-						next := toString(payload["@odata.nextLink"])
-						return items[:max], next, nil
-					}
 				}
 			}
+		}
+		// A nextLink resumes after the entire server page. Never discard its tail.
+		if max > 0 && len(items) >= max {
+			return items, toString(payload["@odata.nextLink"]), nil
 		}
 
 		next := toString(payload["@odata.nextLink"])

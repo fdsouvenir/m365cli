@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Adapted from opensrc/repos/github.com/steipete/gogcli/scripts/release.sh.
 set -euo pipefail
 
 version="${1:-}"
-if [[ -z "$version" ]]; then
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
   echo "usage: scripts/release.sh X.Y.Z" >&2
   exit 2
 fi
@@ -49,6 +49,8 @@ if [[ ! -s "$notes_file" ]]; then
 fi
 
 make ci
+make build
+python3 scripts/generate-skills.py --check
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "working tree changed by CI checks; commit formatting fixes before releasing" >&2
@@ -59,13 +61,15 @@ if git rev-parse "v$version" >/dev/null 2>&1; then
   echo "tag v$version already exists"
 else
   git tag -a "v$version" -m "Release $version"
-  git push origin main --tags
+  git push origin "v$version"
 fi
 
 if gh release view "v$version" >/dev/null 2>&1; then
   gh release edit "v$version" --notes-file "$notes_file"
 else
-  gh release create "v$version" --notes-file "$notes_file"
+  release_flags=()
+  if [[ "$version" == *-* ]]; then release_flags+=(--prerelease); fi
+  gh release create "v$version" --notes-file "$notes_file" "${release_flags[@]}"
 fi
 
 echo "Release notes updated. Next: scripts/verify-release.sh $version"

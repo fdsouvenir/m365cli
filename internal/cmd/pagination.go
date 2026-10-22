@@ -26,7 +26,7 @@ func normalizePageToken(raw string) (string, error) {
 	if !u.IsAbs() || strings.TrimSpace(u.Host) == "" {
 		return "", usage("--page must be an absolute http(s) URL")
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
+	if u.Scheme != "https" || u.User != nil || u.Fragment != "" || (u.Port() != "" && u.Port() != "443") {
 		return "", usage("--page must be an absolute http(s) URL")
 	}
 	if !isAllowedGraphPageHost(u.Hostname()) {

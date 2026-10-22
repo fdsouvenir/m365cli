@@ -397,3 +397,27 @@ func containsString(values []string, target string) bool {
 	}
 	return false
 }
+
+// Adding a second account must not redirect commands using the existing default.
+func TestLoginSecondAccountPreservesDefault(t *testing.T) {
+	setTempUserConfigEnv(t)
+	store := profile.NewStore()
+	if err := store.Upsert(config.ProfileRecord{Name: "personal", Audience: "consumer", AuthMode: "delegated", ClientID: "client", AccountID: "old"}, true); err != nil {
+		t.Fatal(err)
+	}
+	previous := newAuthManager
+	newAuthManager = func() authManager {
+		return &fakeAuthManager{delegatedAccount: auth.AccountInfo{AccountID: "work-id", TenantID: "tenant"}}
+	}
+	defer func() { newAuthManager = previous }()
+	if err := runAuthLogin(context.Background(), authLoginParams{Profile: "work", Audience: "enterprise", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true}); err != nil {
+		t.Fatal(err)
+	}
+	active, err := store.Active()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.Name != "personal" {
+		t.Fatalf("adding account switched default to %s", active.Name)
+	}
+}

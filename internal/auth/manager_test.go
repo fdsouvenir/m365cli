@@ -259,6 +259,7 @@ func setTempSecretsHome(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
+	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 }
 
 func idTokenFor(t *testing.T, accountID string, tenantID string) string {
@@ -589,11 +590,11 @@ func TestScopeSetContainsAllMatchesFullURLScopes(t *testing.T) {
 	}
 }
 
-func TestScopeSetContainsAllDefaultCoversAll(t *testing.T) {
+func TestScopeSetContainsAllDefaultDoesNotProveConsent(t *testing.T) {
 	granted := []string{"openid", "profile", "https://graph.microsoft.com/.default"}
 	required := []string{"Mail.Read", "Calendars.ReadWrite"}
-	if !scopeSetContainsAll(granted, required) {
-		t.Fatal("expected .default scope to cover all required scopes")
+	if scopeSetContainsAll(granted, required) {
+		t.Fatal(".default is not evidence of consented permissions")
 	}
 }
 

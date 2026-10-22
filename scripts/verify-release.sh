@@ -1,152 +1,69 @@
-#!/usr/bin/env bash
-# Adapted from opensrc/repos/github.com/steipete/gogcli/scripts/verify-release.sh.
+#!/bin/bash
 set -euo pipefail
-
 version="${1:-}"
-if [[ -z "$version" ]]; then
-  echo "usage: scripts/verify-release.sh X.Y.Z" >&2
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+  echo 'usage: scripts/verify-release.sh X.Y.Z[-prerelease]' >&2
   exit 2
 fi
-
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
+repository="fdsouvenir/m365cli"
+release_dir="$(mktemp -d)"
+trap 'rm -rf "$release_dir"' EXIT
 
-changelog="CHANGELOG.md"
-if [[ ! -f "$changelog" ]]; then
-  echo "missing $changelog" >&2
-  exit 2
-fi
-if ! grep -q "^## ${version} - " "$changelog"; then
-  echo "missing changelog section for $version" >&2
-  exit 2
-fi
-if grep -q "^## ${version} - Unreleased" "$changelog"; then
-  echo "changelog section still Unreleased for $version" >&2
-  exit 2
-fi
+gh release view "v$version" --repo "$repository" --json body --jq '.body' > "$release_dir/notes"
+[[ -s "$release_dir/notes" ]] || { echo 'Missing release notes' >&2; exit 1; }
+gh release download "v$version" --repo "$repository" --dir "$release_dir" --pattern 'm365cli_*' --pattern checksums.txt
+python3 - "$release_dir" "$version" <<'PY'
+import hashlib
+import platform
+from pathlib import Path
+import subprocess
+import sys
+import tarfile
+import zipfile
 
-notes_file="$(mktemp -t m365cli-release-notes)"
-tmp_assets_dir=""
-cleanup() {
-  if [[ -n "$tmp_assets_dir" && -d "$tmp_assets_dir" ]]; then
-    rm -rf "$tmp_assets_dir"
-  fi
-  rm -f "$notes_file"
-}
-trap cleanup EXIT
-
-awk -v ver="$version" '
-  $0 ~ "^## "ver" " {print "## "ver; in_section=1; next}
-  in_section && /^## / {exit}
-  in_section {print}
-' "$changelog" | sed '/^$/d' > "$notes_file"
-
-if [[ ! -s "$notes_file" ]]; then
-  echo "release notes empty for $version" >&2
-  exit 2
-fi
-
-release_body="$(gh release view "v$version" --json body -q .body)"
-if [[ -z "$release_body" ]]; then
-  echo "GitHub release notes empty for v$version" >&2
-  exit 2
-fi
-
-assets_count="$(gh release view "v$version" --json assets -q '.assets | length')"
-if [[ "$assets_count" -eq 0 ]]; then
-  echo "no GitHub release assets for v$version" >&2
-  exit 2
-fi
-
-release_run_id="$(gh run list -L 20 --workflow release.yml --json databaseId,conclusion,headBranch -q ".[] | select(.headBranch==\"v$version\") | select(.conclusion==\"success\") | .databaseId" | head -n1)"
-if [[ -z "$release_run_id" ]]; then
-  echo "release workflow not green for v$version" >&2
-  exit 2
-fi
-
-ci_ok="$(gh run list -L 1 --workflow ci.yml --branch main --json conclusion -q '.[0].conclusion')"
-if [[ "$ci_ok" != "success" ]]; then
-  echo "CI not green for main" >&2
-  exit 2
-fi
-
-make ci
-
-formula_path="${M365CLI_HOMEBREW_FORMULA_PATH:-../homebrew-tap/Formula/m365cli.rb}"
-if [[ -f "$formula_path" ]]; then
-  formula_version="$(awk -F '\"' '/^[[:space:]]*version /{print $2; exit}' "$formula_path" | xargs)"
-  if [[ "$formula_version" != "$version" ]]; then
-    echo "formula version mismatch: $formula_version" >&2
-    exit 2
-  fi
-
-  tmp_assets_dir="$(mktemp -d -t m365cli-release-assets)"
-  gh release download "v$version" -p checksums.txt -D "$tmp_assets_dir" >/dev/null
-  checksums_file="$tmp_assets_dir/checksums.txt"
-
-  sha_for_asset() {
-    local name="$1"
-    awk -v n="$name" '$2==n {print $1}' "$checksums_file"
-  }
-
-  formula_sha_for_url() {
-    local url_substr="$1"
-    awk -v s="$url_substr" '
-      index($0, s) {found=1; next}
-      found && $1=="sha256" {gsub(/"/, "", $2); print $2; exit}
-    ' "$formula_path"
-  }
-
-  formula_sha_for_asset() {
-    local concrete_asset="$1"
-    local templated_asset="$2"
-    local sha
-
-    sha="$(formula_sha_for_url "$concrete_asset")"
-    if [[ -z "$sha" ]]; then
-      sha="$(formula_sha_for_url "$templated_asset")"
-    fi
-
-    printf '%s' "$sha"
-  }
-
-  darwin_amd64_expected="$(sha_for_asset "m365cli_${version}_darwin_amd64.tar.gz")"
-  darwin_arm64_expected="$(sha_for_asset "m365cli_${version}_darwin_arm64.tar.gz")"
-  linux_amd64_expected="$(sha_for_asset "m365cli_${version}_linux_amd64.tar.gz")"
-  linux_arm64_expected="$(sha_for_asset "m365cli_${version}_linux_arm64.tar.gz")"
-
-  darwin_amd64_formula="$(formula_sha_for_asset "m365cli_${version}_darwin_amd64.tar.gz" "m365cli_#{version}_darwin_amd64.tar.gz")"
-  darwin_arm64_formula="$(formula_sha_for_asset "m365cli_${version}_darwin_arm64.tar.gz" "m365cli_#{version}_darwin_arm64.tar.gz")"
-  linux_amd64_formula="$(formula_sha_for_asset "m365cli_${version}_linux_amd64.tar.gz" "m365cli_#{version}_linux_amd64.tar.gz")"
-  linux_arm64_formula="$(formula_sha_for_asset "m365cli_${version}_linux_arm64.tar.gz" "m365cli_#{version}_linux_arm64.tar.gz")"
-
-  if [[ "$darwin_amd64_formula" != "$darwin_amd64_expected" ]]; then
-    echo "formula sha mismatch (darwin_amd64): $darwin_amd64_formula (expected $darwin_amd64_expected)" >&2
-    exit 2
-  fi
-  if [[ "$darwin_arm64_formula" != "$darwin_arm64_expected" ]]; then
-    echo "formula sha mismatch (darwin_arm64): $darwin_arm64_formula (expected $darwin_arm64_expected)" >&2
-    exit 2
-  fi
-  if [[ "$linux_amd64_formula" != "$linux_amd64_expected" ]]; then
-    echo "formula sha mismatch (linux_amd64): $linux_amd64_formula (expected $linux_amd64_expected)" >&2
-    exit 2
-  fi
-  if [[ "$linux_arm64_formula" != "$linux_arm64_expected" ]]; then
-    echo "formula sha mismatch (linux_arm64): $linux_arm64_formula (expected $linux_arm64_expected)" >&2
-    exit 2
-  fi
-
-  tap="${M365CLI_HOMEBREW_TAP:-jaredpalmer/tap}"
-  formula_name="${M365CLI_HOMEBREW_FORMULA_NAME:-m365cli}"
-  brew update >/dev/null
-  brew upgrade "${tap}/${formula_name}" || brew install "${tap}/${formula_name}"
-  brew test "${tap}/${formula_name}"
-  m365cli --version
-
-  echo "Homebrew verification passed for ${tap}/${formula_name}."
-else
-  echo "Homebrew formula not found at $formula_path; skipping Homebrew verification."
-fi
-
-echo "Release v$version verified (CI, GitHub release notes/assets)."
+folder = Path(sys.argv[1])
+version = sys.argv[2]
+expected = {f'm365cli_{version}_{target}.{extension}' for target, extension in [
+    ('linux_amd64','tar.gz'), ('linux_arm64','tar.gz'),
+    ('darwin_amd64','tar.gz'), ('darwin_arm64','tar.gz'), ('windows_amd64','zip')]}
+checksums = {}
+for line in (folder/'checksums.txt').read_text().splitlines():
+    digest, name = line.split(maxsplit=1)
+    checksums[name.lstrip('*')] = digest
+if set(checksums) != expected:
+    sys.exit(f'Unexpected checksum inventory: {set(checksums)}')
+for name in sorted(expected):
+    archive = folder/name
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != checksums[name]:
+        sys.exit(f'Checksum mismatch: {name}')
+    if name.endswith('.zip'):
+        with zipfile.ZipFile(archive) as data:
+            members = set(data.namelist())
+    else:
+        with tarfile.open(archive) as data:
+            members = set(data.getnames())
+    binary = 'm365cli.exe' if name.endswith('.zip') else 'm365cli'
+    required = {binary, 'README.md', 'NOTICE', 'skills/m365cli/SKILL.md', 'skills/m365cli-excel/SKILL.md', 'skills/m365cli-mail/references/commands.md'}
+    if name.endswith('.zip'):
+        required.add('m365cli-wam.exe')
+    if not required <= members:
+        sys.exit(f'Missing archive contents in {name}: {required - members}')
+    print(f'Verified checksum and contents: {name}')
+os_name = {'Linux':'linux','Darwin':'darwin'}.get(platform.system())
+arch = {'x86_64':'amd64','aarch64':'arm64','arm64':'arm64'}.get(platform.machine())
+if os_name and arch:
+    archive = folder/f'm365cli_{version}_{os_name}_{arch}.tar.gz'
+    with tarfile.open(archive) as data:
+        # Extract only the executable, never arbitrary archive paths.
+        executable = folder/'m365cli'
+        executable.write_bytes(data.extractfile('m365cli').read())
+        executable.chmod(0o700)
+    result = subprocess.check_output([str(executable), '--version'], text=True)
+    if version not in result:
+        sys.exit(f'Unexpected version: {result}')
+    subprocess.run([str(executable),'excel','range','set','--help'], check=True, stdout=subprocess.DEVNULL)
+    print(result.strip())
+PY
+printf 'Release v%s: all five platform assets verified. Live account qualification is separate.\n' "$version"

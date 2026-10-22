@@ -1,3 +1,14 @@
+## 1.0.0-rc.1 - 2026-10-22
+
+- Rename the fork, executable, module, environment and release assets to m365cli under fdsouvenir; retain upstream attribution.
+- Add business delegated Excel worksheet, range, table and row operations with write previews and account capability gates.
+- Add explicit --account selection and preserve the active default when adding accounts.
+- Add narrow mail read/send/write permission selections and live read-only account verification.
+- Encrypt file-backed credentials, require a storage password, reject unsafe continuation URLs and avoid silently discarded page tails.
+- Reject unexpected API/OAuth redirects and do not replay uncertain writes on server errors.
+- Bundle core, generated service and practical workflow skills; remove upstream Homebrew publishing dependencies.
+- Live personal/business consent, refresh, workbook behavior and hosted Falcon Link handoff remain unqualified. This is a release candidate, not live commissioning evidence.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

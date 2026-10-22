@@ -11,6 +11,7 @@ import (
 
 	"github.com/fdsouvenir/m365cli/internal/auth"
 	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/fdsouvenir/m365cli/internal/graph"
 	"github.com/fdsouvenir/m365cli/internal/input"
 	"github.com/fdsouvenir/m365cli/internal/outfmt"
 	"github.com/fdsouvenir/m365cli/internal/profile"
@@ -46,6 +47,7 @@ type AuthCmd struct {
 	Login  AuthLoginCmd     `cmd:"" help:"Login and save profile credentials"`
 	Update AuthUpdateCmd    `cmd:"" help:"Review current auth settings and update selected fields"`
 	Logout AuthLogoutCmd    `cmd:"" help:"Log out of a Microsoft account"`
+	Check  AuthCheckCmd     `cmd:"" help:"Verify selected delegated account against Microsoft Graph (read-only)"`
 	Status AuthStatusCmd    `cmd:"" help:"Display active account and login status"`
 	Use    AuthUseCmd       `cmd:"" help:"Switch the active profile"`
 
@@ -62,8 +64,8 @@ type AuthUpdateCmd struct {
 
 type AuthLoginCmd struct {
 	Profile         string `name:"profile" help:"Profile name (e.g. personal, work)"`
-	Audience        string `name:"audience" help:"Token audience: consumer (MSA) or enterprise (Entra)"`
-	ClientID        string `name:"client-id" help:"Application (client) ID from Entra app registration"`
+	Audience        string `name:"audience" env:"M365CLI_AUDIENCE" help:"Token audience: consumer (MSA) or enterprise (Entra)"`
+	ClientID        string `name:"client-id" env:"M365CLI_CLIENT_ID" help:"Application (client) ID from operator-provided Entra app registration"`
 	Tenant          string `name:"tenant" help:"Tenant ID or domain (enterprise only)"`
 	Authority       string `name:"authority" hidden:"" help:"Advanced authority override"`
 	Mode            string `name:"mode" default:"delegated" help:"Auth mode: delegated or app-only"`
@@ -199,7 +201,7 @@ func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 	if mode == profile.AuthModeDelegated {
 		allWorkloads := []string{"mail", "calendar", "contacts", "tasks", "onedrive"}
 		if audience == profile.AudienceEnterprise {
-			allWorkloads = append(allWorkloads, "groups")
+			allWorkloads = append(allWorkloads, "groups", "excel")
 		}
 		var err error
 		workloads, err = promptDelegatedWorkloads(ctx, audience, allWorkloads)
@@ -358,6 +360,14 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 			return usage(err.Error())
 		}
 
+		if record.Audience == profile.AudienceConsumer {
+			for _, w := range workloads {
+				if w == "excel" || w == "groups" {
+					return usage(w + " requires a business account")
+				}
+			}
+		}
+
 		scopes, err := auth.DelegatedScopesForWorkloads(workloads)
 		if err != nil {
 			return usage(err.Error())
@@ -404,7 +414,17 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		}
 	}
 
-	if err := store.Upsert(record, true); err != nil {
+	makeActive := false
+	active, activeErr := store.Active()
+	if errors.Is(activeErr, profile.ErrNoActiveProfile) {
+		makeActive = true
+	} else if activeErr != nil {
+		return activeErr
+	} else {
+		makeActive = active.Name == record.Name
+	}
+	record.Active = makeActive
+	if err := store.Upsert(record, makeActive); err != nil {
 		return err
 	}
 
@@ -413,7 +433,7 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 			"profile":  record.Name,
 			"audience": record.Audience,
 			"mode":     record.AuthMode,
-			"active":   true,
+			"active":   makeActive,
 		})
 	}
 
@@ -527,7 +547,7 @@ func promptDelegatedWorkloads(ctx context.Context, audience string, defaults []s
 		{Label: "onedrive", Value: "onedrive"},
 	}
 	if audience == profile.AudienceEnterprise {
-		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: "groups (enterprise only)", Value: "groups"})
+		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: "groups (enterprise only)", Value: "groups"}, input.SelectStringOption{Label: "excel (business only)", Value: "excel"})
 	}
 
 	selected, err := input.MultiSelectStrings(ctx, input.MultiSelectStringConfig{
@@ -1009,4 +1029,29 @@ func rootProfileOverride(ctx context.Context) string {
 		return strings.TrimSpace(flags.Profile)
 	}
 	return ""
+}
+
+// AuthCheckCmd verifies the live identity without sending mail or writing data.
+type AuthCheckCmd struct{}
+
+func (c *AuthCheckCmd) Run(ctx context.Context) error {
+	selected, err := profile.NewStore().Resolve(rootProfileOverride(ctx))
+	if err != nil {
+		return err
+	}
+	if normalizeAuthMode(selected.AuthMode) != profile.AuthModeDelegated {
+		return usage("auth check requires a delegated profile")
+	}
+	manager := auth.NewManager()
+	client := graph.NewClient(func(ctx context.Context, scopes []string) (string, error) {
+		return manager.AcquireDelegatedToken(ctx, selected.Name, selected.ClientID, selected.Authority, scopes, selected.AccountID, selected.TenantID)
+	})
+	var identity map[string]any
+	if err := client.DoJSON(ctx, "GET", "/me", nil, nil, []string{"User.Read"}, &identity); err != nil {
+		return err
+	}
+	if selected.AccountID != "" && !strings.EqualFold(fmt.Sprint(identity["id"]), selected.AccountID) {
+		return errors.New("Microsoft Graph identity does not match selected profile")
+	}
+	return outfmt.WriteJSON(os.Stdout, map[string]any{"profile": selected.Name, "verified": true, "identity": identity})
 }

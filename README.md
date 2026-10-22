@@ -1,337 +1,212 @@
 # m365cli
 
-Unofficial agent-friendly Microsoft 365 CLI
+An unofficial, agent-friendly Microsoft 365 CLI, forked from
+[Jared Palmer's mogcli](https://github.com/jaredpalmer/mogcli).
 
-`m365cli` is a Microsoft Graph CLI for personal Microsoft accounts (MSA) and enterprise Microsoft Entra ID accounts. It provides scriptable commands for Mail, Calendar, Contacts, Groups, Tasks, and OneDrive.
+## v1 scope
 
-## What m365cli supports
+| Service | Personal delegated | Business delegated | Business app-only |
+|---|---|---|---|
+| Outlook mail | Yes | Yes | Yes, with target user |
+| Calendar | Yes | Yes | Not implemented |
+| Contacts | Yes | Yes | Yes, with target user |
+| Microsoft To Do | Yes | Yes | Not implemented |
+| OneDrive | Yes | Yes | Yes, with target user |
+| Microsoft 365 Groups | No | Yes | Yes |
+| Excel workbook APIs | No | Yes | No |
 
-- Multiple profiles with exactly one active profile at a time.
-- Consumer and enterprise audiences.
-- Delegated user auth and enterprise app-only auth.
-- Stable scripting output modes: `--json` and `--plain`.
-- Interactive delegated wizard (`m365cli auth`), advanced app-only wizard (`m365cli auth app`), settings editor (`m365cli auth update`), and non-interactive login (`m365cli auth login`).
-- Per-command scope requests in delegated mode (progressive consent).
-- `--dry-run` previews for write operations in Mail, Calendar, and OneDrive.
+These are implemented command boundaries, not a claim that every account/license
+has been commissioned. Microsoft licenses, consent and tenant policies still
+apply. Teams, Advertising and other services are outside v1.
 
-### Workload support matrix
-
-| Workload | Delegated | App-only |
-|---|---|---|
-| Mail | Yes | Yes (enterprise, requires target user) |
-| Calendar | Yes | No |
-| Contacts | Yes | Yes (enterprise, requires target user) |
-| Groups | Enterprise only | Enterprise only |
-| Tasks (Microsoft To Do) | Yes | No |
-| OneDrive | Yes | Yes (enterprise, requires target user) |
-
-Notes:
-
-- App-only mode is enterprise-only.
-- Calendar and tasks are intentionally blocked in app-only mode.
-- Groups are intentionally blocked for consumer profiles.
+**Qualification:** automated API/CLI checks run in CI. Real personal/business
+sign-in, tenant consent, refresh, workbook operations and Windows broker behavior
+must be qualified with actual accounts. The release candidate does not claim
+those live flows have passed. Falcon Link's hosted onboarding is separate work.
 
 ## Install
 
-### Option 1: Build from source
+Download a platform archive and `checksums.txt` from
+[Releases](https://github.com/fdsouvenir/m365cli/releases), verify its checksum,
+and unpack it. Archives include the executable and bundled skills. Windows also
+includes `m365cli-wam.exe`, which must stay beside the main executable.
 
-```bash
+Or build from source with Go 1.25 or newer:
+
+```sh
 git clone https://github.com/fdsouvenir/m365cli.git
 cd m365cli
-go build -o bin/m365cli ./cmd/m365cli
+make build
 ./bin/m365cli --help
 ```
 
-### Option 2: go install
-
-```bash
+```sh
 go install github.com/fdsouvenir/m365cli/cmd/m365cli@latest
-m365cli --help
 ```
 
-### Option 3: Homebrew
+`go install` does not install the bundled skills or Windows broker helper.
+There is no maintained Homebrew tap for this fork.
 
-```bash
-brew tap jaredpalmer/tap
-brew install jaredpalmer/tap/m365cli
-m365cli --help
+## Agent-led setup
+
+A person says “connect Outlook so you can read and send email.” The agent inspects
+accounts, chooses `mail-read,mail-send`, starts one sign-in and presents Microsoft's
+verification URL/code. The person grants consent; the agent then verifies identity
+and requested services using reads, never an unsolicited email or test write.
+The bundled [core skill](skills/m365cli/SKILL.md) describes the complete flow.
+
+The operator supplies an Entra public-client app registration supporting the
+required account audiences and device-code sign-in. Reuse the existing Falcon Link
+registration where configured; no client ID, tenant or credentials are embedded in
+the package. `M365CLI_CLIENT_ID` supplies the ID without repeating it per login.
+
+```sh
+m365cli auth status --json
+m365cli auth login --profile personal --audience consumer \
+  --scope-workloads mail-read,mail-send --no-input --json
+m365cli auth login --profile work --audience enterprise \
+  --scope-workloads mail-read,mail-send,calendar,onedrive,excel --no-input --json
+m365cli --account work auth check --json
 ```
 
-## Microsoft app setup prerequisites
+`--client-id` overrides the operator environment. `--tenant` selects an enterprise
+tenant; otherwise sign-in uses `organizations`. The login command waits for
+Microsoft sign-in and consent; `--no-input` disables terminal questions, not consent.
+Linux and macOS use Microsoft's device-code flow. Windows uses its account broker.
+A tenant may require administrator consent.
 
-Before login, create app registrations in Microsoft Entra:
+### Permissions
 
-1. Consumer app registration (for MSA audience).
-2. Enterprise app registration (for work/school audience).
+| Workload | Delegated Graph permissions (in addition to identity/offline access) |
+|---|---|
+| `mail-read` | `Mail.Read` |
+| `mail-send` | `Mail.Send` |
+| `mail-write` | `Mail.ReadWrite` (drafts) |
+| `mail` | `Mail.Read`, `Mail.Send` (compatibility bundle) |
+| `calendar` | `Calendars.Read`, `Calendars.ReadWrite` |
+| `contacts` | `Contacts.Read`, `Contacts.ReadWrite` |
+| `tasks` | `Tasks.Read`, `Tasks.ReadWrite` |
+| `onedrive` | `Files.Read`, `Files.ReadWrite` |
+| `excel` | `Files.ReadWrite` |
+| `groups` | `Group.Read.All`, `GroupMember.Read.All` |
 
-For delegated login:
+Other than the individual mail selections, these service bundles include writes.
+They are not read-only controls. Request workloads together and reauthorize with
+the intended union when adding capabilities. Local configuration changes do not
+revoke consent. Missing scopes are not silently treated as consent via `.default`.
 
-1. Enable public client flow in app Authentication settings.
-2. Add delegated Graph permissions for the workloads you plan to use.
+### Multiple accounts
 
-For app-only login:
+Profiles isolate credentials and saved account/tenant identity. `--account NAME`
+(alias: `--use-profile NAME`) selects an account for any API command without changing
+the global default. Unknown profiles fail; there is no fallback to another account.
+The first login becomes the default. Adding another profile preserves that default.
+`auth use NAME` explicitly changes it. `auth logout --profile NAME` removes only
+that profile's local credentials; it does not revoke Microsoft authorization.
 
-1. Use an enterprise app registration.
-2. Add required application permissions.
-3. Grant admin consent.
-4. Create a client secret.
+`auth status --json` describes saved local profiles, not verified live health.
+`--account NAME auth check --json` performs a real read-only Graph identity check.
+Verify service access separately using a small read. Raw tokens are never output.
 
-## Quick start
+### Credential storage
 
-### 1) Interactive setup (recommended)
+macOS uses native Keychain when available. Headless/Linux file storage requires a
+non-empty `M365CLI_KEYRING_PASSWORD` supplied privately by the operator, and uses
+AES-256-GCM with random salts/nonces and PBKDF2-HMAC-SHA256 (210,000 iterations).
+Entries are written atomically with private file permissions. A missing or wrong
+password fails; legacy plaintext entries are not silently read or migrated.
 
-```bash
-m365cli auth
+`M365CLI_KEYRING_BACKEND=auto|keychain|file` chooses storage. Configuration lives in
+the platform user-config directory under `m365cli`, separate from upstream mogcli.
+The rename does not copy existing tokens. Sign in again rather than copying legacy
+plaintext caches. Use `--client-secret-env` or `--refresh-token-env` for explicitly
+needed confidential-client/token imports; avoid literal secrets on command lines.
+
+## Commands
+
+```sh
+m365cli --account personal mail list --max 20 --json
+m365cli --account work calendar list --help
+m365cli --account work contacts list --json
+m365cli --account work tasks lists --json
+m365cli --account work onedrive ls / --json
+m365cli --account work groups list --json
 ```
 
-This wizard configures the profile and starts delegated device-code login.
+`--json` provides structured output; `--plain` provides TSV for supported tables.
+Use `--help` for exact service flags. Supported writes have `--dry-run`; destructive
+operations require confirmation or explicit `--force` in noninteractive execution.
+A preview does not authorize a write. Server-error responses to writes are not
+automatically retried: check the remote result before repeating an uncertain send,
+create or append.
 
-Advanced app-only interactive setup (enterprise only):
+### Pagination
 
-```bash
-m365cli auth app
+List commands return an opaque Graph `next` URL. Resume it with `--page URL` using
+the same account. `--max` requests a page-size/collection target, not a strict output
+cap: the last server page may exceed it. Retaining the full page prevents skipped
+records when resuming. Single-page services can return fewer records; continue
+until `next` is empty for full coverage. Continuations must stay on the configured
+Graph origin with no scheme downgrade, userinfo or fragment. API redirects are
+refused except secure, unauthenticated OneDrive content downloads.
+
+### Excel
+
+Operate on existing `.xlsx` workbooks in business OneDrive or SharePoint. Discover
+the item ID using OneDrive, then use `--workbook ITEM_ID`; `--drive DRIVE_ID`
+selects another business drive. Microsoft Graph workbook APIs do not support
+consumer storage or application-only authentication. Even reads require
+`Files.ReadWrite`.
+
+```sh
+m365cli --account work excel worksheets list --workbook ITEM_ID --json
+m365cli --account work excel range get --workbook ITEM_ID \
+  --sheet Sheet1 --address A1:C10 --json
+m365cli --account work excel range set --workbook ITEM_ID \
+  --sheet Sheet1 --address A1:B2 --file rows.json --dry-run
+m365cli --account work excel tables list --workbook ITEM_ID --json
+m365cli --account work excel rows append --workbook ITEM_ID \
+  --table TABLE_ID --file rows.json --dry-run
 ```
 
-### 2) Scripted delegated login
+`rows.json` contains a rectangular JSON array such as `[["Revenue",125],["Cost",80]]`.
+Use `range set --field formulas` for formula strings. `null` leaves a range cell
+unchanged. Range output stays JSON to preserve matrices. Worksheet add/delete,
+table creation and row append are also available; see `excel --help`.
 
-Consumer profile:
+Microsoft's [Excel overview](https://learn.microsoft.com/en-us/graph/api/resources/excel?view=graph-rest-1.0)
+explicitly excludes consumer storage, despite some individual API permission tables
+listing personal delegated permissions. This version follows the storage boundary.
 
-```bash
-m365cli auth login \
-  --profile personal \
-  --audience consumer \
-  --client-id <consumer-client-id> \
-  --scope-workloads mail,calendar,contacts,tasks,onedrive
+## Skills
+
+The `skills/` folders contain a core setup skill, seven service skills, and inbox
+triage, meeting preparation and weekly digest workflows. Install the folders into
+your agent's supported skills directory. Do not install them over unrelated skills.
+This repository does not modify installed Office plugins or customer configuration.
+
+Service syntax is generated from the actual executable:
+
+```sh
+make build
+python3 scripts/generate-skills.py
+python3 scripts/generate-skills.py --check
 ```
 
-Enterprise delegated profile:
+## Development and release
 
-```bash
-m365cli auth login \
-  --profile work \
-  --audience enterprise \
-  --client-id <enterprise-client-id> \
-  --tenant <tenant-id-or-domain> \
-  --scope-workloads mail,calendar,contacts,tasks,onedrive,groups
+```sh
+make ci
+make build
+go vet ./...
+python3 scripts/generate-skills.py --check
 ```
 
-### 3) Scripted app-only login (enterprise)
+CI checks Linux, macOS Keychain builds and Windows/broker packaging. Releases use
+GoReleaser with this repository's GitHub token, not an upstream Homebrew credential.
+`scripts/release.sh VERSION` requires clean, verified main and creates the tag;
+`scripts/verify-release.sh VERSION` checks released checksums, expected platforms,
+bundled skills and the host-platform binary. Live qualification remains a separate
+release gate, not a substitute for these checks.
 
-```bash
-export M365CLI_CLIENT_SECRET="<client-secret-value>"
-
-m365cli auth login \
-  --profile work-app \
-  --audience enterprise \
-  --mode app-only \
-  --client-id <enterprise-client-id> \
-  --tenant <tenant-id-or-domain> \
-  --app-only-user user@contoso.com \
-  --client-secret-env M365CLI_CLIENT_SECRET
-```
-
-### 4) Switch and inspect profiles
-
-```bash
-m365cli auth accounts
-m365cli auth use work
-m365cli auth whoami
-```
-
-For one-off command routing without switching active profile:
-
-```bash
-m365cli --use-profile work mail list --max 10
-```
-
-### 5) Update existing auth settings without full re-onboarding
-
-```bash
-m365cli auth update
-m365cli auth update --profile work
-```
-
-The update flow shows current settings, lets you choose one field at a time to edit, and saves only selected changes.
-
-## Command overview
-
-- `m365cli auth`
-- `m365cli auth app`
-- `m365cli auth login|update|logout|accounts|use|whoami`
-- `m365cli mail list|get|send`
-- `m365cli calendar list|get|create|update|delete`
-- `m365cli contacts list|get|create|update|delete`
-- `m365cli groups list|get|members`
-- `m365cli tasks lists|list|get|create|update|complete|delete`
-- `m365cli onedrive ls|get|put|mkdir|rm`
-- `m365cli config get|keys|set|unset|list|path`
-- `m365cli completion <shell>`
-
-## Usage examples
-
-Mail:
-
-```bash
-m365cli mail list --max 50 --query "from:alerts@example.com"
-m365cli mail get <message-id>
-m365cli mail send --to dev@contoso.com --subject "Deploy complete" --body "Finished."
-m365cli mail send --to dev@contoso.com --subject "Re: Deploy complete" --quote <message-id>
-m365cli mail send --to dev@contoso.com --subject "Deploy complete" --body "Finished." --dry-run
-```
-
-Calendar:
-
-```bash
-m365cli calendar list --from 2026-02-12 --to 2026-02-19 --max 100
-m365cli calendar create \
-  --subject "Planning" \
-  --start "2026-02-13T16:00:00-08:00" \
-  --end "2026-02-13T16:30:00-08:00" \
-  --body "Weekly sync"
-m365cli calendar delete <event-id> --dry-run
-```
-
-Contacts:
-
-```bash
-m365cli contacts list --max 100
-m365cli contacts create --display-name "Jane Doe" --email "jane@contoso.com"
-m365cli contacts create \
-  --display-name "Jane Doe" \
-  --email "jane@contoso.com" \
-  --org "Contoso" \
-  --title "Program Manager" \
-  --url "https://contoso.example/jane" \
-  --note "Customer success lead" \
-  --custom region=NA \
-  --custom team=platform
-m365cli contacts update <contact-id> --title "Director" --custom region=EMEA
-```
-
-Groups:
-
-```bash
-m365cli groups list --max 100
-m365cli groups members <group-id> --max 100
-```
-
-Tasks:
-
-```bash
-m365cli tasks lists
-m365cli tasks list --list <list-id> --max 100
-m365cli tasks create --list <list-id> --title "Follow up"
-m365cli tasks complete --list <list-id> --task <task-id>
-```
-
-OneDrive:
-
-```bash
-m365cli onedrive ls --path / --max 100
-m365cli onedrive put ./report.pdf --path /Reports/report.pdf
-m365cli onedrive get /Reports/report.pdf --out ./report.pdf
-m365cli onedrive mkdir --path /Reports/Archive
-m365cli onedrive rm --path /Reports/old-report.pdf
-m365cli onedrive rm --path /Reports/old-report.pdf --dry-run
-```
-
-If `m365cli onedrive get` is run without `--out`, files are saved under the local `onedrive-downloads` directory in your m365cli config path.
-
-App-only target user override (mail/contacts/onedrive):
-
-```bash
-m365cli mail list --user user@contoso.com --max 20
-m365cli onedrive ls --user user@contoso.com --path /
-```
-
-## Pagination and scripting
-
-Most list commands support `--page` to resume from a next-page token.
-
-```bash
-m365cli groups list --max 50 --json
-m365cli groups list --page "<next-token-url>"
-```
-
-`--next-token` is also accepted as an alias for pagination resume flags where supported.
-
-Output modes:
-
-- `--json`: structured output for tooling.
-- `--plain`: stable tab-separated output for shell scripts.
-
-Examples:
-
-```bash
-m365cli mail list --json | jq '.messages[0]'
-m365cli tasks list --list <list-id> --plain
-```
-
-## Configuration and secrets
-
-Show config path:
-
-```bash
-m365cli config path
-```
-
-Show editable config keys:
-
-```bash
-m365cli config keys
-```
-
-Current keys:
-
-- `timezone`
-- `keyring_backend`
-
-Profile metadata is stored in config. Tokens and secrets are stored via keychain/keyring backends.
-
-`keyring_backend` supports `auto`, `keychain`, and `file`.
-
-- `auto`: use native OS keychain when available, otherwise file backend.
-- `keychain`: require native OS keychain support.
-- `file`: store under the local m365cli keyring directory.
-
-`M365CLI_KEYRING_PASSWORD` is treated as explicitly configured even when empty, so headless runs do not implicitly prompt for keyring passwords.
-
-## Troubleshooting
-
-No active profile:
-
-```bash
-m365cli auth accounts
-m365cli auth use <profile>
-```
-
-Refresh delegated login:
-
-```bash
-m365cli auth login --profile <profile> --audience enterprise --client-id <id> --scope-workloads mail,calendar,contacts,tasks,onedrive
-```
-
-Logout and reset profile auth state:
-
-```bash
-m365cli auth logout --profile <profile>
-```
-
-Verbose mode:
-
-```bash
-m365cli --verbose mail list
-```
-
-## Development
-
-```bash
-go test ./...
-go run ./cmd/m365cli --help
-```
-
-Additional project docs are in `docs/`.
-
-## License
-
-MIT
+See [NOTICE](NOTICE) for upstream attribution.

@@ -20,7 +20,7 @@ func completionScript(shell string) (string, error) {
 func bashCompletionScript() string {
 	return `#!/usr/bin/env bash
 
-_mog_complete() {
+_m365cli_complete() {
   local IFS=$'\n'
   local completions
   completions=$(m365cli __complete --cword "$COMP_CWORD" -- "${COMP_WORDS[@]}")
@@ -30,7 +30,7 @@ _mog_complete() {
   fi
 }
 
-complete -F _mog_complete m365cli
+complete -F _m365cli_complete m365cli
 `
 }
 
@@ -43,7 +43,7 @@ bashcompinit
 }
 
 func fishCompletionScript() string {
-	return `function __mog_complete
+	return `function __m365cli_complete
   set -l words (commandline -opc)
   set -l cur (commandline -ct)
   set -l cword (count $words)
@@ -53,7 +53,7 @@ func fishCompletionScript() string {
   m365cli __complete --cword $cword -- $words
 end
 
-complete -c m365cli -f -a "(__mog_complete)"
+complete -c m365cli -f -a "(__m365cli_complete)"
 `
 }
 

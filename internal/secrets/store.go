@@ -66,7 +66,7 @@ func normalizeKeyringBackend(value string) string {
 }
 
 func keyringPassword() (string, bool) {
-	// Treat empty strings as intentional (for headless/non-interactive use).
+	// File encryption rejects absent or empty passwords.
 	return os.LookupEnv(keyringPasswordEnv)
 }
 
@@ -189,7 +189,23 @@ func setFileSecret(key string, value []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, value, 0o600); err != nil {
+	encrypted, err := encryptFileSecret(key, value)
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".secret-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(encrypted); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
 		return fmt.Errorf("store secret: %w", err)
 	}
 	return nil
@@ -205,7 +221,7 @@ func getFileSecret(key string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read secret: %w", err)
 	}
-	return item, nil
+	return decryptFileSecret(key, item)
 }
 
 func deleteFileSecret(key string) error {

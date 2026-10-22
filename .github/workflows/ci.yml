@@ -17,8 +17,12 @@ jobs:
           cache: true
       - name: Run CI checks
         run: make ci
-      - name: Build
-        run: go build -mod=vendor ./cmd/m365cli
+      - name: Build and check generated skills
+        run: |
+          make build
+          python3 scripts/generate-skills.py --check
+      - name: Vet
+        run: go vet -mod=vendor ./...
 
   darwin-cgo-build:
     runs-on: macos-latest

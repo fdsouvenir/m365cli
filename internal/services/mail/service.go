@@ -138,7 +138,8 @@ func trimPage(items []map[string]any, next string, max int) ([]map[string]any, s
 	if max <= 0 || len(items) <= max {
 		return items, next
 	}
-	return items[:max], next
+	// The continuation skips the complete page, so retain every returned row.
+	return items, next
 }
 
 func hasSearchQuery(page string) bool {

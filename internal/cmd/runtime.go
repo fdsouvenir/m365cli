@@ -21,6 +21,7 @@ type runtimeEnv struct {
 type runtimeCapability string
 
 const (
+	capExcel          runtimeCapability = "excel"
 	capMailList       runtimeCapability = "mail.list"
 	capMailGet        runtimeCapability = "mail.get"
 	capMailSend       runtimeCapability = "mail.send"
@@ -67,6 +68,7 @@ type capabilityRule struct {
 }
 
 var capabilityRules = map[runtimeCapability]capabilityRule{
+	capExcel:          {allowedAudiences: []string{profile.AudienceEnterprise}, allowedAuthModes: []string{profile.AuthModeDelegated}, unsupportedAudienceMessage: "Excel Graph workbook operations require business OneDrive or SharePoint; personal accounts are not supported.", unsupportedAuthModeMessage: "Excel requires delegated user sign-in; application-only permissions are not supported."},
 	capMailList:       delegatedOrAppOnlyRule(),
 	capMailGet:        delegatedOrAppOnlyRule(),
 	capMailSend:       delegatedOrAppOnlyRule(),
