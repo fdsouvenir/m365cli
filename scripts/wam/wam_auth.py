@@ -13,6 +13,8 @@ Protocol:
   Response: {"access_token": "...", ...} or {"error": "...", "error_description": "..."}
 """
 
+import ctypes
+from ctypes import wintypes
 import json
 import os
 import sys
@@ -35,7 +37,7 @@ def token_cache_path() -> str:
     base = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA") or os.path.expanduser("~")
     cache_dir = os.path.join(base, "m365cli")
     os.makedirs(cache_dir, exist_ok=True)
-    return os.path.join(cache_dir, "wam-token-cache.json")
+    return os.path.join(cache_dir, "wam-token-cache.dpapi")
 
 
 @contextmanager
@@ -57,14 +59,39 @@ def cache_lock(cache_path: str):
                 msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
 
 
+def protect_cache(data: bytes, decrypt: bool = False) -> bytes:
+    """Bind persisted broker tokens to the Windows user using DPAPI."""
+    if os.name != "nt":
+        raise RuntimeError("Broker cache protection requires Windows")
+
+    class DataBlob(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]
+
+    crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    function = crypt32.CryptUnprotectData if decrypt else crypt32.CryptProtectData
+    function.argtypes = [ctypes.POINTER(DataBlob), ctypes.c_void_p, ctypes.POINTER(DataBlob), ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(DataBlob)]
+    function.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+    buffer = ctypes.create_string_buffer(data)
+    source = DataBlob(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte)))
+    result = DataBlob()
+    if not function(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(result)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return ctypes.string_at(result.data, result.size)
+    finally:
+        kernel32.LocalFree(result.data)
+
+
 def load_token_cache(cache: msal.SerializableTokenCache, cache_path: str) -> None:
     if not os.path.exists(cache_path):
         return
-
-    with open(cache_path, "r", encoding="utf-8") as f:
+    with open(cache_path, "rb") as f:
         state = f.read()
     if state:
-        cache.deserialize(state)
+        cache.deserialize(protect_cache(state, decrypt=True).decode("utf-8"))
 
 
 def save_token_cache(cache: msal.SerializableTokenCache, cache_path: str) -> None:
@@ -74,11 +101,11 @@ def save_token_cache(cache: msal.SerializableTokenCache, cache_path: str) -> Non
     directory = os.path.dirname(cache_path)
     os.makedirs(directory, exist_ok=True)
     fd, temp_path = tempfile.mkstemp(
-        dir=directory, prefix="wam-token-cache-", suffix=".json"
+        dir=directory, prefix="wam-token-cache-", suffix=".dpapi"
     )
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(cache.serialize())
+        with os.fdopen(fd, "wb") as f:
+            f.write(protect_cache(cache.serialize().encode("utf-8")))
         os.replace(temp_path, cache_path)
     finally:
         if os.path.exists(temp_path):
@@ -129,6 +156,8 @@ def find_account(
         for a in accounts:
             if a.get("local_account_id", "").lower() == account_id.lower():
                 return a
+            # An explicit ID is authoritative; never fall back to a same-name user.
+        return None
     if username:
         for a in accounts:
             if a.get("username", "").lower() == username.lower():
@@ -191,6 +220,11 @@ def main() -> None:
     scopes = request.get("scopes", [])
     if isinstance(scopes, str):
         scopes = [s for s in scopes.split(" ") if s]
+
+    # MSAL adds these reserved OIDC scopes automatically and rejects them as
+    # explicit requested scopes. Keep the delegated Graph scopes only.
+    if isinstance(scopes, list):
+        scopes = [scope for scope in scopes if isinstance(scope, str) and scope.lower() not in {"openid", "profile", "offline_access"}]
 
     if not client_id:
         json.dump(error_response("missing_client_id", "client_id is required"), sys.stdout)

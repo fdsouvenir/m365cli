@@ -10,3 +10,4 @@ m365cli-wam.spec
 
 # secrets
 .env
+__pycache__/

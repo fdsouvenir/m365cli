@@ -110,7 +110,9 @@ Verify service access separately using a small read. Raw tokens are never output
 
 ### Credential storage
 
-macOS uses native Keychain when available. Headless/Linux file storage requires a
+The Windows broker helper encrypts its MSAL cache with user-bound DPAPI. The Go
+CLI token cache on Windows, like Linux/headless storage, uses the password-backed
+file store. macOS uses native Keychain when available. File storage requires a
 non-empty `M365CLI_KEYRING_PASSWORD` supplied privately by the operator, and uses
 AES-256-GCM with random salts/nonces and PBKDF2-HMAC-SHA256 (210,000 iterations).
 Entries are written atomically with private file permissions. A missing or wrong
