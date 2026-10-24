@@ -1,3 +1,9 @@
+## 1.0.0-rc.2 - 2026-10-24
+
+- Fix live personal-account identity verification: compare the exact Microsoft CID representation without weakening work-account ID matching.
+- Preserve existing accounts, permissions, encrypted tokens and configuration; no reauthorization needed for the fix.
+- Real personal sign-in and read-only mail, calendar, contacts, To Do and OneDrive checks passed during qualification. Broader stable-v1 gates remain open.
+
 ## 1.0.0-rc.1 - 2026-10-22
 
 - Rename the fork, executable, module, environment and release assets to m365cli under fdsouvenir; retain upstream attribution.

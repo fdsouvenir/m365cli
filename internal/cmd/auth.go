@@ -1062,8 +1062,36 @@ func (c *AuthCheckCmd) Run(ctx context.Context) error {
 	if err := client.DoJSON(ctx, "GET", "/me", nil, nil, []string{"User.Read"}, &identity); err != nil {
 		return err
 	}
-	if selected.AccountID != "" && !strings.EqualFold(fmt.Sprint(identity["id"]), selected.AccountID) {
+	if !graphIdentityMatches(selected, fmt.Sprint(identity["id"])) {
 		return errors.New("Microsoft Graph identity does not match selected profile")
 	}
 	return outfmt.WriteJSON(os.Stdout, map[string]any{"profile": selected.Name, "verified": true, "identity": identity})
+}
+
+// graphIdentityMatches compares Graph's returned identity with the account that
+// owns the selected token cache. Work identity remains an exact ID comparison.
+func graphIdentityMatches(selected config.ProfileRecord, graphID string) bool {
+	if selected.AccountID == "" || graphID == "" {
+		return false
+	}
+	if strings.EqualFold(graphID, selected.AccountID) {
+		return true
+	}
+	if normalizeAudience(selected.Audience) != profile.AudienceConsumer {
+		return false
+	}
+	// MSA oid is 00000000-0000-0000-XXXX-XXXXXXXXXXXX; Graph returns
+	// the same 64-bit CID as exactly 16 hexadecimal digits, without separators.
+	if len(selected.AccountID) != 36 || !strings.HasPrefix(selected.AccountID, "00000000-0000-0000-") || selected.AccountID[23] != '-' || len(graphID) != 16 {
+		return false
+	}
+	cid := selected.AccountID[19:23] + selected.AccountID[24:]
+	for _, id := range []string{cid, graphID} {
+		for _, r := range id {
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+				return false
+			}
+		}
+	}
+	return strings.EqualFold(cid, graphID)
 }

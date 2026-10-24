@@ -472,3 +472,30 @@ func TestLogoutAllPreservesProfileWhenCredentialRemovalFails(t *testing.T) {
 		t.Fatalf("failed logout must retain profile for recovery: found=%v err=%v", ok, err)
 	}
 }
+
+// Personal Graph /me exposes a 16-digit CID; the token's oid represents that
+// CID in a zero-prefixed GUID. Same-email work accounts must remain distinct.
+func TestGraphIdentityMatchesPersonalAndWorkBoundaries(t *testing.T) {
+	consumer := config.ProfileRecord{Audience: "consumer", TenantID: "9188040d-6c67-4c5b-b112-36a304b66dad", AccountID: "00000000-0000-0000-0123-456789abcdef"}
+	cases := []struct {
+		name    string
+		profile config.ProfileRecord
+		graphID string
+		want    bool
+	}{
+		{"consumer CID equivalent", consumer, "0123456789abcdef", true},
+		{"case insensitive CID", consumer, "0123456789ABCDEF", true},
+		{"different consumer", consumer, "0123456789abcdee", false},
+		{"short suffix is not identity", consumer, "89abcdef", false},
+		{"work does not normalize personal form", config.ProfileRecord{Audience: "enterprise", AccountID: consumer.AccountID}, "0123456789abcdef", false},
+		{"work GUID exact", config.ProfileRecord{Audience: "enterprise", AccountID: "12345678-1234-1234-1234-123456789abc"}, "12345678-1234-1234-1234-123456789abc", true},
+		{"missing saved identity fails", config.ProfileRecord{Audience: "consumer"}, "0123456789abcdef", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := graphIdentityMatches(tc.profile, tc.graphID); got != tc.want {
+				t.Fatalf("identity match=%v want=%v", got, tc.want)
+			}
+		})
+	}
+}
