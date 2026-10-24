@@ -32,7 +32,7 @@ Choose only the requested workloads, combined in one login:
 | Contacts | `contacts` (read/write) |
 | Microsoft To Do | `tasks` (read/write) |
 | OneDrive | `onedrive` (read/write) |
-| Microsoft 365 Groups | `groups` (business only; may need administrator consent) |
+| Microsoft 365 Groups | `groups` (business only; requires tenant-administrator consent) |
 | Excel workbook operations | `excel` (business storage, delegated sign-in only) |
 
 Calendar, contacts, tasks and OneDrive bundles currently include write permissions.
@@ -58,7 +58,11 @@ use device-code sign-in: deliver the actual Microsoft verification URL and
 short-lived code privately to the requesting person. The command waits for their
 consent. Windows may use its account broker. Do not retry a pending login by
 starting duplicate flows. Tenant policy can require administrator approval; no
-extra scope can bypass it. Never print refresh tokens or client secrets.
+extra scope can bypass it. If administrator consent is unavailable, report the
+affected connection as blocked rather than connected. Do not repeat unchanged
+login attempts or ask the person to create a tenant. Keep optional Groups out of
+ordinary personal-productivity setup unless requested. Never print refresh tokens
+or client secrets.
 
 The file keyring requires a non-empty operator-supplied
 `M365CLI_KEYRING_PASSWORD`; native macOS Keychain needs no file password. Do not
