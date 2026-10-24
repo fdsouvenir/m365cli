@@ -1,7 +1,7 @@
 ## 1.0.0 - 2026-10-24
 
 ### Highlights
-- Stable m365cli fork under fdsouvenir, with explicit multiple-account selection and eleven bundled setup, service and workflow skills.
+- First stable release of m365cli, forked from [Jared Palmer's mogcli](https://github.com/jaredpalmer/mogcli), with explicit multiple-account selection and eleven bundled setup, service and workflow skills.
 - Outlook mail, calendar, contacts, To Do, OneDrive, business Groups and business delegated Excel worksheet/range/table/row commands. Teams and Advertising are outside v1.
 - Encrypted headless credential storage, protected Windows broker cache, strict account boundaries, safe continuation handling and non-replaying uncertain writes.
 - Includes the live personal-account identity-verification repair from rc.2.
