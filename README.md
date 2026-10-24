@@ -19,10 +19,15 @@ These are implemented command boundaries, not a claim that every account/license
 has been commissioned. Microsoft licenses, consent and tenant policies still
 apply. Teams, Advertising and other services are outside v1.
 
-**Qualification:** automated API/CLI checks run in CI. Real personal/business
-sign-in, tenant consent, refresh, workbook operations and Windows broker behavior
-must be qualified with actual accounts. The release candidate does not claim
-those live flows have passed. Falcon Link's hosted onboarding is separate work.
+**Qualification:** personal-account sign-in, identity verification, token refresh
+and read-only mail, calendar, contacts, To Do and OneDrive checks passed on the
+released Linux CLI. Business sign-in remained blocked by Microsoft administrator
+consent even without Groups; no business connection was recorded. Business service
+access (including Excel), app-only access, live write operations and end-to-end
+Windows broker sign-in remain unverified. The maintainer accepted those limits for
+stable 1.0.0. Automated API/CLI and cross-platform checks pass; they are not a
+substitute for live provider qualification. Falcon Link's hosted onboarding is
+separate work.
 
 ## Install
 
@@ -73,7 +78,10 @@ m365cli --account work auth check --json
 tenant; otherwise sign-in uses `organizations`. The login command waits for
 Microsoft sign-in and consent; `--no-input` disables terminal questions, not consent.
 Linux and macOS use Microsoft's device-code flow. Windows uses its account broker.
-A tenant may require administrator consent.
+Groups always require tenant-administrator consent. Organization policy may also
+require it for other services. Successful sign-in is not successful authorization;
+report blocked access without asking the person to create a tenant or granting
+additional permissions.
 
 ### Permissions
 
