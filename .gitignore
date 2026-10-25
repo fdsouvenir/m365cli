@@ -6,8 +6,8 @@ bin/
 dist/
 build/
 /m365cli
-m365cli-wam.spec
 
 # secrets
 .env
 __pycache__/
+vendor/

@@ -56,7 +56,7 @@ The client ID comes from the operator environment or `--client-id`. Use
 `--audience enterprise` for work/school and `--tenant` when configured. Linux/macOS
 use device-code sign-in: deliver the actual Microsoft verification URL and
 short-lived code privately to the requesting person. The command waits for their
-consent. Windows may use its account broker. Do not retry a pending login by
+consent. Do not retry a pending login by
 starting duplicate flows. Tenant policy can require administrator approval; no
 extra scope can bypass it. If administrator consent is unavailable, report the
 affected connection as blocked rather than connected. Do not repeat unchanged

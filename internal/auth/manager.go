@@ -29,10 +29,6 @@ var (
 type Manager struct {
 	HTTPClient *http.Client
 	now        func() time.Time
-
-	// WAMInvoker overrides the WAM helper subprocess invocation. Used for testing.
-	// When nil, the default invokeWAMExe implementation is used.
-	WAMInvoker func(ctx context.Context, req WAMRequest) (WAMResponse, error)
 }
 
 // NewManager returns an auth manager with default HTTP/time providers.
@@ -41,14 +37,6 @@ func NewManager() *Manager {
 		HTTPClient: http.DefaultClient,
 		now:        time.Now,
 	}
-}
-
-func (m *Manager) invokeWAM(ctx context.Context, req WAMRequest) (WAMResponse, error) {
-	if m.WAMInvoker != nil {
-		return m.WAMInvoker(ctx, req)
-	}
-
-	return invokeWAMExe(ctx, req)
 }
 
 func (m *Manager) httpClient() *http.Client {
@@ -169,53 +157,7 @@ func (m *Manager) LoginDelegated(ctx context.Context, input DelegatedLoginInput,
 		return m.loginDelegatedRefreshToken(ctx, input, writeMessage)
 	}
 
-	if useWAM() {
-		return m.loginDelegatedWAM(ctx, input, writeMessage)
-	}
-
 	return m.loginDelegatedDeviceCode(ctx, input, writeMessage)
-}
-
-func (m *Manager) loginDelegatedWAM(ctx context.Context, input DelegatedLoginInput, writeMessage func(string)) (AccountInfo, error) {
-	if writeMessage != nil {
-		writeMessage("Authenticating via Windows account...")
-	}
-
-	resp, err := m.invokeWAM(ctx, WAMRequest{
-		Action:    "login",
-		ClientID:  input.ClientID,
-		Authority: normalizeAuthority(input.Authority),
-		Scopes:    input.Scopes,
-	})
-	if err != nil {
-		return AccountInfo{}, err
-	}
-	if strings.TrimSpace(resp.AccessToken) == "" {
-		return AccountInfo{}, errors.New("WAM login response missing access_token")
-	}
-
-	expiresIn := resp.ExpiresIn
-	if expiresIn <= 0 {
-		expiresIn = 3600
-	}
-
-	account := accountFromWAMResponse(resp)
-	if strings.TrimSpace(account.AccountID) == "" && strings.TrimSpace(account.Username) == "" {
-		return AccountInfo{}, errors.New("WAM login response missing account identity")
-	}
-
-	cache := TokenCache{
-		AccessToken: resp.AccessToken,
-		TokenType:   resp.TokenType,
-		Scope:       resp.Scope,
-		ExpiresAt:   m.nowUTC().Add(time.Duration(expiresIn) * time.Second),
-		IDToken:     resp.IDToken,
-	}
-	if err := m.saveToken(input.ProfileName, cache); err != nil {
-		return AccountInfo{}, err
-	}
-
-	return account, nil
 }
 
 func (m *Manager) loginDelegatedDeviceCode(ctx context.Context, input DelegatedLoginInput, writeMessage func(string)) (AccountInfo, error) {
@@ -439,102 +381,7 @@ func (m *Manager) AcquireDelegatedToken(
 		return cache.AccessToken, nil
 	}
 
-	if useWAM() {
-		return m.acquireDelegatedTokenWAM(ctx, profileName, clientID, authority, requiredScopes, expectedAccountID, expectedTenantID)
-	}
-
 	return m.acquireDelegatedTokenRefresh(ctx, profileName, clientID, authority, requiredScopes, cache, expectedAccountID, expectedTenantID)
-}
-
-func (m *Manager) acquireDelegatedTokenWAM(
-	ctx context.Context,
-	profileName string,
-	clientID string,
-	authority string,
-	scopes []string,
-	expectedAccountID string,
-	expectedTenantID string,
-) (string, error) {
-	cache, _ := m.loadToken(profileName)
-	cachedAccount := accountFromWAMResponse(WAMResponse{IDToken: cache.IDToken})
-	requestAccountID := firstNonEmpty(expectedAccountID, cachedAccount.AccountID)
-	requestUsername := cachedAccount.Username
-	if requestAccountID == "" && requestUsername == "" {
-		return "", errfmt.NewUserFacingError(
-			fmt.Sprintf(
-				"cached delegated login for profile %s is missing account identity. Run `m365cli auth login --profile %s ...` to sign in again.",
-				profileName,
-				profileName,
-			),
-			nil,
-		)
-	}
-
-	resp, err := m.invokeWAM(ctx, WAMRequest{
-		Action:    "acquire_silent",
-		ClientID:  clientID,
-		Authority: normalizeAuthority(authority),
-		Scopes:    scopes,
-		AccountID: requestAccountID,
-		Username:  requestUsername,
-	})
-	if err != nil {
-		return "", fmt.Errorf("WAM silent token acquisition failed: %w. Run `m365cli auth login` to sign in again", err)
-	}
-	if strings.TrimSpace(resp.AccessToken) == "" {
-		return "", errors.New("WAM silent token response missing access_token")
-	}
-	if requestAccountID != "" && strings.TrimSpace(resp.AccountID) != "" && !strings.EqualFold(requestAccountID, strings.TrimSpace(resp.AccountID)) {
-		return "", errfmt.NewUserFacingError(
-			fmt.Sprintf(
-				"WAM returned a different account for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
-				profileName,
-				profileName,
-			),
-			nil,
-		)
-	}
-	if requestUsername != "" && strings.TrimSpace(resp.Username) != "" && !strings.EqualFold(requestUsername, strings.TrimSpace(resp.Username)) {
-		return "", errfmt.NewUserFacingError(
-			fmt.Sprintf(
-				"WAM returned a different user for profile %s. Run `m365cli auth login --profile %s ...` to sign in again.",
-				profileName,
-				profileName,
-			),
-			nil,
-		)
-	}
-	expiresIn := resp.ExpiresIn
-	if expiresIn <= 0 {
-		expiresIn = 3600
-	}
-
-	updated := TokenCache{
-		AccessToken: resp.AccessToken,
-		TokenType:   resp.TokenType,
-		Scope:       resp.Scope,
-		ExpiresAt:   m.nowUTC().Add(time.Duration(expiresIn) * time.Second),
-		IDToken:     resp.IDToken,
-	}
-	if updated.IDToken == "" {
-		updated.IDToken = cache.IDToken
-	}
-	if strings.TrimSpace(updated.Scope) == "" {
-		updated.Scope = cache.Scope
-	}
-
-	if err := m.validateCachedDelegatedIdentity(profileName, updated, expectedAccountID, expectedTenantID); err != nil {
-		return "", err
-	}
-
-	if err := m.saveToken(profileName, updated); err != nil {
-		return "", err
-	}
-
-	if updated.AccessToken == "" || !scopeStringCoversRequiredScopes(updated.Scope, scopes) {
-		return "", errors.New("Microsoft did not grant the required permissions; sign in again with the requested workloads")
-	}
-	return updated.AccessToken, nil
 }
 
 func (m *Manager) acquireDelegatedTokenRefresh(
@@ -912,39 +759,6 @@ func accountFromClaims(claims idClaims) AccountInfo {
 		Username:  username,
 		TenantID:  strings.TrimSpace(claims.TID),
 	}
-}
-
-func accountFromWAMResponse(resp WAMResponse) AccountInfo {
-	account := AccountInfo{
-		AccountID: strings.TrimSpace(resp.AccountID),
-		Username:  strings.TrimSpace(resp.Username),
-		TenantID:  strings.TrimSpace(resp.TenantID),
-	}
-	if resp.IDTokenClaims != nil {
-		account.AccountID = firstNonEmpty(account.AccountID, resp.IDTokenClaims.OID, resp.IDTokenClaims.Sub)
-		account.Username = firstNonEmpty(account.Username, resp.IDTokenClaims.PreferredUsername, resp.IDTokenClaims.Email, resp.IDTokenClaims.UPN)
-		account.TenantID = firstNonEmpty(account.TenantID, resp.IDTokenClaims.TID)
-	}
-	if strings.TrimSpace(resp.IDToken) != "" {
-		if claims, err := parseIDClaims(resp.IDToken); err == nil {
-			parsed := accountFromClaims(claims)
-			account.AccountID = firstNonEmpty(account.AccountID, parsed.AccountID)
-			account.Username = firstNonEmpty(account.Username, parsed.Username)
-			account.TenantID = firstNonEmpty(account.TenantID, parsed.TenantID)
-		}
-	}
-
-	return account
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if s := strings.TrimSpace(v); s != "" {
-			return s
-		}
-	}
-
-	return ""
 }
 
 func (m *Manager) doForm(ctx context.Context, endpoint string, form url.Values) ([]byte, error) {

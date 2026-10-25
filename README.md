@@ -23,18 +23,18 @@ apply. Teams, Advertising and other services are outside v1.
 and read-only mail, calendar, contacts, To Do and OneDrive checks passed on the
 released Linux CLI. Business sign-in remained blocked by Microsoft administrator
 consent even without Groups; no business connection was recorded. Business service
-access (including Excel), app-only access, live write operations and end-to-end
-Windows broker sign-in remain unverified. The maintainer accepted those limits for
-stable 1.0.0. Automated API/CLI and cross-platform checks pass; they are not a
+access (including Excel), app-only access and live write operations remain
+unverified. The maintainer accepted those limits for stable 1.0.0. Automated API/CLI and cross-platform checks pass; they are not a
 substitute for live provider qualification. Falcon Link's hosted onboarding is
 separate work.
 
 ## Install
 
+Supported platforms are Linux and macOS (amd64 and arm64).
+
 Download a platform archive and `checksums.txt` from
 [Releases](https://github.com/fdsouvenir/m365cli/releases), verify its checksum,
-and unpack it. Archives include the executable and bundled skills. Windows also
-includes `m365cli-wam.exe`, which must stay beside the main executable.
+and unpack it. Archives include the executable and bundled skills.
 
 Or build from source with Go 1.25 or newer:
 
@@ -49,7 +49,7 @@ make build
 go install github.com/fdsouvenir/m365cli/cmd/m365cli@latest
 ```
 
-`go install` does not install the bundled skills or Windows broker helper.
+`go install` does not install the bundled skills.
 There is no maintained Homebrew tap for this fork.
 
 ## Agent-led setup
@@ -77,7 +77,7 @@ m365cli --account work auth check --json
 `--client-id` overrides the operator environment. `--tenant` selects an enterprise
 tenant; otherwise sign-in uses `organizations`. The login command waits for
 Microsoft sign-in and consent; `--no-input` disables terminal questions, not consent.
-Linux and macOS use Microsoft's device-code flow. Windows uses its account broker.
+Sign-in uses Microsoft's device-code flow.
 Groups always require tenant-administrator consent. Organization policy may also
 require it for other services. Successful sign-in is not successful authorization;
 report blocked access without asking the person to create a tenant or granting
@@ -118,10 +118,8 @@ Verify service access separately using a small read. Raw tokens are never output
 
 ### Credential storage
 
-The Windows broker helper encrypts its MSAL cache with user-bound DPAPI. The Go
-CLI token cache on Windows, like Linux/headless storage, uses the password-backed
-file store. macOS uses native Keychain when available. File storage requires a
-non-empty `M365CLI_KEYRING_PASSWORD` supplied privately by the operator, and uses
+Linux/headless storage uses the password-backed file store. macOS uses native
+Keychain when available. File storage requires a non-empty `M365CLI_KEYRING_PASSWORD` supplied privately by the operator, and uses
 AES-256-GCM with random salts/nonces and PBKDF2-HMAC-SHA256 (210,000 iterations).
 Entries are written atomically with private file permissions. A missing or wrong
 password fails; legacy plaintext entries are not silently read or migrated.
@@ -205,6 +203,9 @@ python3 scripts/generate-skills.py --check
 
 ## Development and release
 
+Dependencies are pinned in `go.mod` and verified against `go.sum`; builds use
+read-only module resolution rather than checked-in dependency source.
+
 ```sh
 make ci
 make build
@@ -212,7 +213,7 @@ go vet ./...
 python3 scripts/generate-skills.py --check
 ```
 
-CI checks Linux, macOS Keychain builds and Windows/broker packaging. Releases use
+CI checks Linux and macOS Keychain builds. Releases use
 GoReleaser with this repository's GitHub token, not an upstream Homebrew credential.
 `scripts/release.sh VERSION` requires clean, verified main and creates the tag;
 `scripts/verify-release.sh VERSION` checks released checksums, expected platforms,

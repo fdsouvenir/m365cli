@@ -21,13 +21,12 @@ from pathlib import Path
 import subprocess
 import sys
 import tarfile
-import zipfile
 
 folder = Path(sys.argv[1])
 version = sys.argv[2]
 expected = {f'm365cli_{version}_{target}.{extension}' for target, extension in [
     ('linux_amd64','tar.gz'), ('linux_arm64','tar.gz'),
-    ('darwin_amd64','tar.gz'), ('darwin_arm64','tar.gz'), ('windows_amd64','zip')]}
+    ('darwin_amd64','tar.gz'), ('darwin_arm64','tar.gz')]}
 checksums = {}
 for line in (folder/'checksums.txt').read_text().splitlines():
     digest, name = line.split(maxsplit=1)
@@ -38,16 +37,9 @@ for name in sorted(expected):
     archive = folder/name
     if hashlib.sha256(archive.read_bytes()).hexdigest() != checksums[name]:
         sys.exit(f'Checksum mismatch: {name}')
-    if name.endswith('.zip'):
-        with zipfile.ZipFile(archive) as data:
-            members = set(data.namelist())
-    else:
-        with tarfile.open(archive) as data:
-            members = set(data.getnames())
-    binary = 'm365cli.exe' if name.endswith('.zip') else 'm365cli'
-    required = {binary, 'README.md', 'NOTICE', 'skills/m365cli/SKILL.md', 'skills/m365cli-excel/SKILL.md', 'skills/m365cli-mail/references/commands.md'}
-    if name.endswith('.zip'):
-        required.add('m365cli-wam.exe')
+    with tarfile.open(archive) as data:
+        members = set(data.getnames())
+    required = {'m365cli', 'README.md', 'NOTICE', 'skills/m365cli/SKILL.md', 'skills/m365cli-excel/SKILL.md', 'skills/m365cli-mail/references/commands.md'}
     if not required <= members:
         sys.exit(f'Missing archive contents in {name}: {required - members}')
     print(f'Verified checksum and contents: {name}')
@@ -66,4 +58,4 @@ if os_name and arch:
     subprocess.run([str(executable),'excel','range','set','--help'], check=True, stdout=subprocess.DEVNULL)
     print(result.strip())
 PY
-printf 'Release v%s: all five platform assets verified. Live account qualification is separate.\n' "$version"
+printf 'Release v%s: all four platform assets verified. Live account qualification is separate.\n' "$version"

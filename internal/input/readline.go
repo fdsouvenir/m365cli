@@ -10,7 +10,7 @@ import (
 
 // ReadLine reads a single line from r.
 //
-// It supports Unix (\n) and Windows (\r\n) line endings, and treats a bare \r as
+// It supports LF (\n) and CRLF (\r\n) line endings, and treats a bare \r as
 // end-of-line as well.
 //
 // If the input ends with EOF before a newline and there is buffered content, the
