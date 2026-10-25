@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -60,9 +59,6 @@ func TestAcquireDelegatedTokenReusesCachedTokenWhenScopesSatisfied(t *testing.T)
 }
 
 func TestAcquireDelegatedTokenRefreshesWhenRequiredScopeMissing(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
-	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -261,9 +257,6 @@ func setTempSecretsHome(t *testing.T) {
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
-	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
@@ -291,9 +284,6 @@ func idTokenFor(t *testing.T, accountID string, tenantID string) string {
 }
 
 func TestAcquireDelegatedTokenRefreshIncludesClientSecretWhenStored(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
-	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -365,9 +355,6 @@ func TestAcquireDelegatedTokenRefreshIncludesClientSecretWhenStored(t *testing.T
 }
 
 func TestAcquireDelegatedTokenRefreshOmitsClientSecretWhenNotStored(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
-	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)
@@ -430,9 +417,6 @@ func TestAcquireDelegatedTokenRefreshOmitsClientSecretWhenNotStored(t *testing.T
 }
 
 func TestLoginDelegatedStoresClientSecret(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("device-code/refresh grant path; Windows broker behavior is covered in wam_test.go")
-	}
 	setTempSecretsHome(t)
 
 	now := time.Date(2026, 2, 12, 12, 0, 0, 0, time.UTC)

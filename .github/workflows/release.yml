@@ -16,36 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  build-wam:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout release tag
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: git checkout "$env:RELEASE_TAG"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Build m365cli-wam.exe
-        run: |
-          uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
-
-      - name: Upload WAM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: m365cli-wam
-          path: dist/m365cli-wam.exe
-          retention-days: 1
-
   goreleaser:
-    needs: build-wam
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -64,20 +35,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
-      - name: Download WAM artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: m365cli-wam
-          path: build/wam
-
-      - name: Verify WAM artifact
-        run: |
-          if [[ ! -f build/wam/m365cli-wam.exe ]]; then
-            echo "missing build/wam/m365cli-wam.exe" >&2
-            exit 1
-          fi
-          ls -lh build/wam/m365cli-wam.exe
 
       - name: Stash GoReleaser config
         run: cp .goreleaser.yaml /tmp/.goreleaser.yaml

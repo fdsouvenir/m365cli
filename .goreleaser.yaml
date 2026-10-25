@@ -17,23 +17,10 @@ builds:
       -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
     env:
       - CGO_ENABLED=0
-      - GOFLAGS=-mod=vendor
+      - GOFLAGS=-mod=readonly
     targets:
       - linux_amd64
       - linux_arm64
-  - id: m365cli_windows
-    main: ./cmd/m365cli
-    binary: m365cli
-    ldflags: >-
-      -s -w
-      -X github.com/fdsouvenir/m365cli/internal/cmd.version={{ .Tag }}
-      -X github.com/fdsouvenir/m365cli/internal/cmd.commit={{ .ShortCommit }}
-      -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
-    env:
-      - CGO_ENABLED=0
-      - GOFLAGS=-mod=vendor
-    targets:
-      - windows_amd64
   - id: m365cli_darwin
     main: ./cmd/m365cli
     binary: m365cli
@@ -44,7 +31,7 @@ builds:
       -X github.com/fdsouvenir/m365cli/internal/cmd.date={{ .Date }}
     env:
       - CGO_ENABLED=1
-      - GOFLAGS=-mod=vendor
+      - GOFLAGS=-mod=readonly
     goos:
       - darwin
     goarch:
@@ -62,19 +49,6 @@ archives:
       - skills/**/*
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: windows
-    ids:
-      - m365cli_windows
-    formats: [zip]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - README.md
-      - NOTICE
-      - skills/**/*
-      # m365cli-wam.exe (amd64) must be pre-built by CI before goreleaser runs.
-      # Build with: uv tool run --python 3.12 --with "msal[broker]>=1.20,<2" pyinstaller --onefile --name m365cli-wam scripts/wam/wam_auth.py
-      - src: build/wam/m365cli-wam.exe
-        strip_parent: true
 
 checksum:
   name_template: checksums.txt

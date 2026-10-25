@@ -13,9 +13,6 @@ import (
 func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
-	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
@@ -120,9 +117,6 @@ func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
 func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
-	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "auto")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
@@ -165,9 +159,6 @@ func TestAutoBackendFallsBackToFileWhenNativeUnavailable(t *testing.T) {
 func TestResolveKeyringBackendInfoPrecedence(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
-	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "")
 
@@ -261,7 +252,6 @@ func stubNativeKeychainFuncs(t *testing.T) func() {
 func TestFileSecretEncryptedAtRest(t *testing.T) {
 	secretHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", secretHome)
-	t.Setenv("APPDATA", secretHome)
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")

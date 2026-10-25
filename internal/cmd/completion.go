@@ -7,7 +7,7 @@ import (
 )
 
 type CompletionCmd struct {
-	Shell string `arg:"" name:"shell" help:"Shell (bash|zsh|fish|powershell)" enum:"bash,zsh,fish,powershell"`
+	Shell string `arg:"" name:"shell" help:"Shell (bash|zsh|fish)" enum:"bash,zsh,fish"`
 }
 
 func (c *CompletionCmd) Run(_ context.Context) error {

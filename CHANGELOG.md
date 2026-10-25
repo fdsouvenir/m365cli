@@ -1,20 +1,25 @@
+## Unreleased
+
+- Support Linux and macOS only, with four release archives and bash, zsh and fish completions.
+- Resolve pinned, checksum-verified Go modules instead of checking in dependency source.
+
 ## 1.0.0 - 2026-10-24
 
 ### Highlights
 - First stable release of m365cli, forked from [Jared Palmer's mogcli](https://github.com/jaredpalmer/mogcli), with explicit multiple-account selection and eleven bundled setup, service and workflow skills.
 - Outlook mail, calendar, contacts, To Do, OneDrive, business Groups and business delegated Excel worksheet/range/table/row commands. Teams and Advertising are outside v1.
-- Encrypted headless credential storage, protected Windows broker cache, strict account boundaries, safe continuation handling and non-replaying uncertain writes.
+- Encrypted headless credential storage, strict account boundaries, safe continuation handling and non-replaying uncertain writes.
 - Includes the live personal-account identity-verification repair from rc.2.
 
 ### Qualification and limits
 - Real Linux personal-account sign-in, identity verification, token refresh and read-only mail, calendar, contacts, To Do and OneDrive checks passed.
 - Business sign-in remains blocked by Microsoft administrator consent, including without Groups. No work account was saved or claimed connected.
-- Business service access and Excel, app-only access, live write operations and end-to-end Windows broker sign-in remain unverified. The maintainer accepted these limits for stable v1 on October 24.
+- Business service access and Excel, app-only access and live write operations remain unverified. The maintainer accepted these limits for stable v1 on October 24.
 - Groups require tenant-administrator consent; organization policy can require administrator consent for other services too. The agent setup guidance now distinguishes sign-in from authorization and avoids repeated blocked login attempts.
 - No test emails, data changes, tenant creation, customer installation or Falcon Link hosted-onboarding deployment was performed.
 
 ### Distribution
-- Linux amd64/arm64, macOS amd64/arm64 and Windows amd64 archives with checksums and complete skill folders; Windows includes its broker helper.
+- Linux amd64/arm64 and macOS amd64/arm64 archives with checksums and complete skill folders.
 - Configuration and encrypted credentials retain the m365cli paths and formats introduced by the release candidates. No new sign-in is required merely to upgrade from rc.2.
 
 ## 1.0.0-rc.2 - 2026-10-24
@@ -44,7 +49,6 @@ When preparing release `X.Y.Z`, add a section with this format:
 
 The release scripts read that section and publish it as GitHub release notes.
 
-## Unreleased
 
 ## 0.0.2 - 2026-02-19
 

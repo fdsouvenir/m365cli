@@ -10,8 +10,6 @@ func completionScript(shell string) (string, error) {
 		return zshCompletionScript(), nil
 	case "fish":
 		return fishCompletionScript(), nil
-	case "powershell":
-		return powerShellCompletionScript(), nil
 	default:
 		return "", fmt.Errorf("unsupported shell: %s", shell)
 	}
@@ -54,18 +52,5 @@ func fishCompletionScript() string {
 end
 
 complete -c m365cli -f -a "(__m365cli_complete)"
-`
-}
-
-func powerShellCompletionScript() string {
-	return `Register-ArgumentCompleter -CommandName m365cli -ScriptBlock {
-  param($commandName, $wordToComplete, $cursorPosition, $commandAst, $fakeBoundParameter)
-  $elements = $commandAst.CommandElements | ForEach-Object { $_.ToString() }
-  $cword = $elements.Count - 1
-  $completions = m365cli __complete --cword $cword -- $elements
-  foreach ($completion in $completions) {
-    [System.Management.Automation.CompletionResult]::new($completion, $completion, 'ParameterValue', $completion)
-  }
-}
 `
 }
