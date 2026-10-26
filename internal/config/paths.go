@@ -10,6 +10,13 @@ import (
 const AppName = "m365cli"
 
 func Dir() (string, error) {
+	if selected := os.Getenv("M365CLI_CONFIG_DIR"); selected != "" {
+		if !filepath.IsAbs(selected) {
+			return "", fmt.Errorf("M365CLI_CONFIG_DIR must be an absolute directory")
+		}
+		return filepath.Clean(selected), nil
+	}
+
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve user config dir: %w", err)

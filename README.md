@@ -128,6 +128,10 @@ password fails; legacy plaintext entries are not silently read or migrated.
 
 `M365CLI_KEYRING_BACKEND=auto|keychain|file` chooses storage. Configuration lives in
 the platform user-config directory under `m365cli`, separate from upstream mogcli.
+Set `M365CLI_CONFIG_DIR` to an absolute directory to select another native config,
+profile and encrypted-keyring store without changing the process home or global
+XDG settings. An unset or empty value keeps the standard location. Relative paths
+are rejected. Existing store contents and encryption formats do not change.
 The renamed application uses a separate credential store. Sign in again to
 populate it; keep legacy plaintext caches out of the new store. Use
 `--client-secret-env` or `--refresh-token-env` for explicitly needed

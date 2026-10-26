@@ -10,6 +10,11 @@ people to choose scope strings, run terminal commands or navigate a service wiza
 Use `m365cli auth status --json` to inspect saved profiles first. This shows local
 configuration. Verify token and service health separately.
 
+When the Office supplies `M365CLI_CONFIG_DIR`, preserve it with the selected
+account. It selects the existing native profile and encrypted-keyring directory;
+do not override the process home or global XDG settings. Never print the inherited
+keyring password.
+
 ## Account selection
 
 Use a distinct named profile for each account and `--account NAME` on every API

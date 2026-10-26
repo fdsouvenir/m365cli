@@ -12,10 +12,19 @@ import (
 
 func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 	home := t.TempDir()
+	selected := filepath.Join(t.TempDir(), "selected-account")
+	t.Setenv("M365CLI_CONFIG_DIR", selected)
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("M365CLI_KEYRING_BACKEND", "file")
 	t.Setenv("M365CLI_KEYRING_PASSWORD", "test-only-password")
+
+	if err := config.WriteConfig(config.File{}); err != nil {
+		t.Fatalf("write selected config: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(selected, "config.json")); err != nil {
+		t.Fatalf("configuration did not use selected directory: %v", err)
+	}
 
 	key := "m365cli:test:key"
 	value := []byte("hello-world")
@@ -40,13 +49,20 @@ func TestSetGetDeleteSecretFileBackend(t *testing.T) {
 		t.Fatal("expected error after deleting secret")
 	}
 
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		t.Fatalf("UserConfigDir failed: %v", err)
+	if _, err := os.Stat(filepath.Join(selected, "keyring")); err != nil {
+		t.Fatalf("encrypted keyring did not use selected directory: %v", err)
 	}
-	if _, statErr := os.Stat(filepath.Join(dir, "m365cli", "keyring")); statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("stat keyring dir failed: %v", statErr)
+	if _, err := os.Stat(filepath.Join(home, ".config", "m365cli")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("default configuration was touched: %v", err)
 	}
+	if os.Getenv("HOME") != home || os.Getenv("XDG_CONFIG_HOME") != filepath.Join(home, ".config") {
+		t.Fatal("process home or global XDG context was changed")
+	}
+	t.Setenv("M365CLI_CONFIG_DIR", "relative/config")
+	if _, err := config.Dir(); err == nil {
+		t.Fatal("relative config directory accepted")
+	}
+
 }
 
 func TestSetGetDeleteSecretKeychainBackendDispatch(t *testing.T) {
