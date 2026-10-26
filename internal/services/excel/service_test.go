@@ -11,7 +11,7 @@ import (
 	"github.com/fdsouvenir/m365cli/internal/graph"
 )
 
-// Verify the caller-visible API contract, not internal helper structure: exact
+// Verify the caller-visible API contract: exact
 // Graph routing, permission requirement and JSON cell types for workbook writes.
 func TestWorkbookOperations(t *testing.T) {
 	cases := []struct {

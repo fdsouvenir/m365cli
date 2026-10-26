@@ -8,12 +8,12 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 SERVICES = {
-    "mail": ("Read and send Outlook email, or create drafts, using m365cli.", "Draft creation needs mail-write; read/send alone use mail-read and mail-send. Sending is an external action, not a connection test."),
+    "mail": ("Read and send Outlook email, or create drafts, using m365cli.", "Draft creation needs mail-write; read/send alone use mail-read and mail-send. Sending requires user authorization. Use read-only checks to test a connection."),
     "calendar": ("Find, create or change Outlook calendar events with m365cli.", "Use delegated authentication. Preserve the person's timezone and verify attendees, start and end before writing."),
     "contacts": ("Find and maintain Outlook contacts with m365cli.", "Match the existing contact before creating a duplicate; pass only intended changes."),
     "tasks": ("Manage Microsoft To Do lists and tasks with m365cli.", "Use delegated authentication. Discover the task list ID before reading or changing its tasks."),
     "onedrive": ("List, download, upload and organize OneDrive files with m365cli.", "Confirm the remote path and conflict behavior before uploads. Downloads are local file writes; do not overwrite unrelated files."),
-    "groups": ("Read business Microsoft 365 Groups and membership with m365cli.", "Groups require a business profile and tenant-administrator consent. This is not Teams administration."),
+    "groups": ("Read business Microsoft 365 Groups and membership with m365cli.", "Groups require a business profile and tenant-administrator consent. Teams administration is outside this skill’s scope."),
     "excel": ("Read or edit business Excel worksheets, ranges, tables and rows with m365cli.", "Use delegated business profiles and .xlsx workbooks in business OneDrive or SharePoint. Personal storage and app-only access are unavailable. Find the drive item ID with OneDrive first. Read the target range/table before changing it. Use --dry-run previews; then read back the result. Matrix files are rectangular JSON arrays; null leaves a range cell unchanged. Use --field formulas explicitly for formulas. Do not retry an uncertain append: inspect the table first to avoid duplicate rows. Range output is JSON even in text mode so matrices remain intact."),
 }
 
