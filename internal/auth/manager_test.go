@@ -513,7 +513,7 @@ func TestLoginDelegatedRefreshTokenSkipsDeviceCode(t *testing.T) {
 		t.Fatalf("LoginDelegated with refresh token failed: %v", err)
 	}
 
-	// Verify it used refresh_token grant, not device_code.
+	// Verify it used the refresh_token grant.
 	if capturedGrantType != "refresh_token" {
 		t.Fatalf("expected grant_type=refresh_token, got %q", capturedGrantType)
 	}

@@ -1,7 +1,7 @@
 ## Unreleased
 
 - Support Linux and macOS only, with four release archives and bash, zsh and fish completions.
-- Resolve pinned, checksum-verified Go modules instead of checking in dependency source.
+- Resolve pinned Go modules and verify their checksums.
 
 ## 1.0.0 - 2026-10-24
 
@@ -37,7 +37,7 @@
 - Encrypt file-backed credentials, require a storage password, reject unsafe continuation URLs and avoid silently discarded page tails.
 - Reject unexpected API/OAuth redirects and do not replay uncertain writes on server errors.
 - Bundle core, generated service and practical workflow skills; remove upstream Homebrew publishing dependencies.
-- Live personal/business consent, refresh, workbook behavior and hosted Falcon Link handoff remain unqualified. This is a release candidate, not live commissioning evidence.
+- Live personal/business consent, refresh, workbook behavior and hosted Falcon Link handoff remain unqualified. Live commissioning remains a separate qualification step for this release candidate.
 
 # Changelog
 

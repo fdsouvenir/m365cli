@@ -15,8 +15,8 @@ An unofficial, agent-friendly Microsoft 365 CLI, forked from
 | Microsoft 365 Groups | No | Yes | Yes |
 | Excel workbook APIs | No | Yes | No |
 
-These are implemented command boundaries, not a claim that every account/license
-has been commissioned. Microsoft licenses, consent and tenant policies still
+The table describes implemented commands. Account and license combinations require
+individual commissioning. Microsoft licenses, consent and tenant policies still
 apply. Teams, Advertising and other services are outside v1.
 
 **Qualification:** personal-account sign-in, identity verification, token refresh
@@ -24,9 +24,9 @@ and read-only mail, calendar, contacts, To Do and OneDrive checks passed on the
 released Linux CLI. Business sign-in remained blocked by Microsoft administrator
 consent even without Groups; no business connection was recorded. Business service
 access (including Excel), app-only access and live write operations remain
-unverified. The maintainer accepted those limits for stable 1.0.0. Automated API/CLI and cross-platform checks pass; they are not a
-substitute for live provider qualification. Falcon Link's hosted onboarding is
-separate work.
+unverified. The maintainer accepted those limits for stable 1.0.0. Automated API/CLI
+and cross-platform checks pass. Live provider qualification remains a separate
+requirement. Falcon Link's hosted onboarding is separate work.
 
 ## Install
 
@@ -76,10 +76,11 @@ m365cli --account work auth check --json
 
 `--client-id` overrides the operator environment. `--tenant` selects an enterprise
 tenant; otherwise sign-in uses `organizations`. The login command waits for
-Microsoft sign-in and consent; `--no-input` disables terminal questions, not consent.
+Microsoft sign-in and consent. `--no-input` disables terminal questions; Microsoft
+consent is still required.
 Sign-in uses Microsoft's device-code flow.
 Groups always require tenant-administrator consent. Organization policy may also
-require it for other services. Successful sign-in is not successful authorization;
+require it for other services. Verify service authorization separately after sign-in;
 report blocked access without asking the person to create a tenant or granting
 additional permissions.
 
@@ -99,8 +100,8 @@ additional permissions.
 | `groups` | `Group.Read.All`, `GroupMember.Read.All` |
 
 Other than the individual mail selections, these service bundles include writes.
-They are not read-only controls. Request workloads together and reauthorize with
-the intended union when adding capabilities. Local configuration changes do not
+Request workloads together and reauthorize with the intended union when adding
+capabilities. Local configuration changes do not
 revoke consent. Missing scopes are not silently treated as consent via `.default`.
 
 ### Multiple accounts
@@ -112,7 +113,8 @@ The first login becomes the default. Adding another profile preserves that defau
 `auth use NAME` explicitly changes it. `auth logout --profile NAME` removes only
 that profile's local credentials; it does not revoke Microsoft authorization.
 
-`auth status --json` describes saved local profiles, not verified live health.
+`auth status --json` describes saved local profiles. Live health requires separate
+verification.
 `--account NAME auth check --json` performs a real read-only Graph identity check.
 Verify service access separately using a small read. Raw tokens are never output.
 
@@ -126,9 +128,10 @@ password fails; legacy plaintext entries are not silently read or migrated.
 
 `M365CLI_KEYRING_BACKEND=auto|keychain|file` chooses storage. Configuration lives in
 the platform user-config directory under `m365cli`, separate from upstream mogcli.
-The rename does not copy existing tokens. Sign in again rather than copying legacy
-plaintext caches. Use `--client-secret-env` or `--refresh-token-env` for explicitly
-needed confidential-client/token imports; avoid literal secrets on command lines.
+The renamed application uses a separate credential store. Sign in again to
+populate it; keep legacy plaintext caches out of the new store. Use
+`--client-secret-env` or `--refresh-token-env` for explicitly needed
+confidential-client/token imports; avoid literal secrets on command lines.
 
 ## Commands
 
@@ -151,8 +154,8 @@ create or append.
 ### Pagination
 
 List commands return an opaque Graph `next` URL. Resume it with `--page URL` using
-the same account. `--max` requests a page-size/collection target, not a strict output
-cap: the last server page may exceed it. Retaining the full page prevents skipped
+the same account. `--max` requests a page-size/collection target.
+The last server page may exceed that target. Retaining the full page prevents skipped
 records when resuming. Single-page services can return fewer records; continue
 until `next` is empty for full coverage. Continuations must stay on the configured
 Graph origin with no scheme downgrade, userinfo or fragment. API redirects are
@@ -204,7 +207,7 @@ python3 scripts/generate-skills.py --check
 ## Development and release
 
 Dependencies are pinned in `go.mod` and verified against `go.sum`; builds use
-read-only module resolution rather than checked-in dependency source.
+read-only module resolution to retrieve those versions.
 
 ```sh
 make ci
@@ -214,10 +217,10 @@ python3 scripts/generate-skills.py --check
 ```
 
 CI checks Linux and macOS Keychain builds. Releases use
-GoReleaser with this repository's GitHub token, not an upstream Homebrew credential.
+GoReleaser with this repository's GitHub token.
 `scripts/release.sh VERSION` requires clean, verified main and creates the tag;
 `scripts/verify-release.sh VERSION` checks released checksums, expected platforms,
-bundled skills and the host-platform binary. Live qualification remains a separate
-release gate, not a substitute for these checks.
+bundled skills and the host-platform binary. Live qualification and these automated
+checks are separate release gates.
 
 See [NOTICE](NOTICE) for upstream attribution.

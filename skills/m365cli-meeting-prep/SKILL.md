@@ -12,11 +12,11 @@ Find the meeting with `calendar list`, then retrieve its details with
 `calendar get ID`. Resolve date, timezone, attendees and the actual agenda before
 searching related mail. Search by meeting subject, counterpart or project, then
 read the messages that support decisions and unresolved actions. Use contacts to
-resolve identities, not as proof of an attendee's current role. Read OneDrive
+resolve identities. Verify an attendee's current role separately. Read OneDrive
 material only when relevant to the requested preparation.
 
 Prepare a brief covering purpose, attendees, decisions needed, recent developments,
 outstanding commitments and suggested questions. Cite event/message/file IDs and
-distinguish documented facts from inferences. Flag unavailable sources rather than
-inventing context. Preparing a meeting does not authorize invitations, calendar
-edits, document sharing or outgoing email.
+distinguish documented facts from inferences. Flag unavailable sources and leave
+unsupported context unknown. Preparing a meeting does not authorize invitations,
+calendar edits, document sharing or outgoing email.

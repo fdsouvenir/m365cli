@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	keyringPasswordEnv = "M365CLI_KEYRING_PASSWORD" //nolint:gosec // env var name, not a credential
-	keyringBackendEnv  = "M365CLI_KEYRING_BACKEND"  //nolint:gosec // env var name, not a credential
+	keyringPasswordEnv = "M365CLI_KEYRING_PASSWORD" //nolint:gosec // environment variable name
+	keyringBackendEnv  = "M365CLI_KEYRING_BACKEND"  //nolint:gosec // environment variable name
 )
 
 var (
