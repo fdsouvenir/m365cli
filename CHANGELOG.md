@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 2.0.0 - 2026-10-26
+
+- Add `M365CLI_CONFIG_DIR`, an absolute configuration, profile and file-keyring directory selector. Existing files and encryption formats are unchanged.
+- Keep inherited process home and global XDG context unchanged, so managed command environments can select an account store using this CLI-specific setting.
+- A major release formalizes the current Linux/macOS-only support contract.
 - Support Linux and macOS only, with four release archives and bash, zsh and fish completions.
 - Resolve pinned Go modules and verify their checksums.
 
