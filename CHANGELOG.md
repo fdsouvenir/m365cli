@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add calendar create/update `--show-as` availability without changing existing defaults or permissions.
+
 - Validate move/archive/delete completion status and message ID; preserve confirmed-write status on response failures and never replay uncertain moves.
 - Add rich message-list metadata, consistent immutable IDs, hidden-folder opt-in, explicit page coverage and bounded mutation summaries.
 
