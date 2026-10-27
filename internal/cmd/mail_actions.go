@@ -197,11 +197,25 @@ func runMailRelocate(ctx context.Context, message MailMessageFlags, folder, acti
 	if message.DryRun {
 		return mailPreview(ctx, action, message.ID, map[string]any{"folder": destination})
 	}
-	if confirm {
-		flags := rootFlagsFromContext(ctx)
-		if flags == nil {
-			flags = &RootFlags{}
+	flags := rootFlagsFromContext(ctx)
+	if flags == nil {
+		flags = &RootFlags{}
+	}
+	if !confirm && !flags.Force {
+		switch strings.ToLower(destination) {
+		case "deleteditems":
+			confirm = true
+		case "inbox", "sentitems", "drafts", "archive", "junkemail": // Known non-deletion destinations.
+		default:
+			deletedID, err := svc.DeletedItemsID(ctx)
+			if err != nil {
+				return err
+			}
+			confirm = destination == deletedID
 		}
+	}
+
+	if confirm {
 		if err := confirmDestructive(ctx, flags, fmt.Sprintf("move message %s to Deleted Items", message.ID)); err != nil {
 			return err
 		}

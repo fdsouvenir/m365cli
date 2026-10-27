@@ -241,3 +241,19 @@ func (s *Service) Move(ctx context.Context, id, folder string) (map[string]any, 
 	err := s.client.DoJSON(ctx, http.MethodPost, s.messagesEndpoint()+"/"+url.PathEscape(strings.TrimSpace(id))+"/move", nil, map[string]any{"destinationId": FolderID(folder)}, draftMailScopes, &result)
 	return result, err
 }
+
+// DeletedItemsID identifies the actual special folder without relying on its
+// localized display name. Mail.ReadWrite also covers this Mail.Read request.
+func (s *Service) DeletedItemsID(ctx context.Context) (string, error) {
+	var folder struct {
+		ID string `json:"id"`
+	}
+	err := s.client.DoJSON(ctx, http.MethodGet, s.mailboxEndpoint()+"/mailFolders/deleteditems", url.Values{"$select": {"id"}}, nil, listMailScopes, &folder)
+	if err != nil {
+		return "", err
+	}
+	if folder.ID == "" {
+		return "", fmt.Errorf("Microsoft did not return the Deleted Items folder ID")
+	}
+	return folder.ID, nil
+}

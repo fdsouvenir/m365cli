@@ -104,6 +104,10 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 						}
 					}
 					if r.Method == http.MethodGet {
+						if strings.HasSuffix(r.URL.Path, "/mailFolders/deleteditems") {
+							fmt.Fprint(w, `{"id":"deleted-id"}`)
+							return
+						}
 						fmt.Fprint(w, `{"value":[{"id":"folder-id"}]}`)
 					} else {
 						fmt.Fprint(w, `{"id":"result-id"}`)
@@ -201,6 +205,11 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 			folders, _, err := svc.Folders(ctx, 20, "")
 			if err != nil || len(folders) != 1 {
 				t.Fatalf("folder discovery: %v %v", folders, err)
+			}
+			expectedPath = mailbox + "/mailFolders/deleteditems"
+			deletedID, err := svc.DeletedItemsID(ctx)
+			if err != nil || deletedID != "deleted-id" {
+				t.Fatalf("Deleted Items identity lookup: %s %v", deletedID, err)
 			}
 			for _, folder := range []struct{ alias, id string }{{"sent", "sentitems"}, {"drafts", "drafts"}, {"archive", "archive"}, {"deleted", "deleteditems"}, {"junk", "junkemail"}, {"CustomFolder", "CustomFolder"}} {
 				expectedPath = mailbox + "/mailFolders/" + folder.id + "/messages"

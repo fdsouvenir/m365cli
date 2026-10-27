@@ -237,8 +237,12 @@ Graph keeps the thread and chooses original reply recipients. By contrast,
 
 Marking read/unread, moving, archiving and deleting uses `mail-write`. All new mail
 writes support `--dry-run` without provider calls. Like other updates, mark,
-move and archive do not add a confirmation prompt. Delete uses the existing
-confirmation/`--force` rule and **moves mail to Deleted Items**, where the person
+move and archive do not add a confirmation prompt, except that moving into
+Deleted Items follows the delete rule too (including its actual folder ID).
+Known folder names are recognized locally; an opaque folder ID is compared with
+a read-only lookup of Deleted Items when `--force` is absent. This uses existing
+mail read/write access, not a new permission. Dry-runs stay local.
+Delete uses the existing confirmation/`--force` rule and **moves mail to Deleted Items**, where the person
 can restore it. It never calls Graph `DELETE` or permanent-delete APIs. Microsoft
 [documents the exact call](https://learn.microsoft.com/en-us/graph/api/message-move):
 `POST /me/messages/{id}/move` with `{"destinationId":"deleteditems"}` (or the

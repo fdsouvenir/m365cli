@@ -27,7 +27,10 @@ all commands. Read the m365cli-mail command reference before choosing filters.
    `mail mark-unread ID`, `mail move ID --folder NAME_OR_ID`, `mail archive ID`,
    or `mail delete ID`. Preview with `--dry-run`. Delete requires confirmation
    (or explicitly authorized `--force` when noninteractive) and moves mail to
-   Deleted Items, where the person can restore it. It never permanently deletes.
+   Deleted Items, where the person can restore it. A move into Deleted Items,
+   whether named or selected by ID, follows the same delete confirmation rule.
+   Other moves, archive and read-status updates need no force. It never
+   permanently deletes.
 
 `mail folders --json` lists top-level folder IDs and child counts. Supported
 friendly folder names are inbox, sent, drafts, archive, deleted and junk. Without
