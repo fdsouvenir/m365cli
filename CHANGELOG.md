@@ -1,16 +1,23 @@
 ## Unreleased
 
-- Add opt-in per-action allowlists and explicitly managed automation that refuses execution unless both service and action lists are configured. Ordinary use and OAuth permissions are unchanged.
+## 2.2.0 - 2026-10-27
 
-- Add calendar create/update `--show-as` availability without changing existing defaults or permissions.
+### Highlights
+- Outlook folder discovery and inbox/folder-specific lists, threaded replies/reply-all, reply drafts, forwarding, read/unread marking, move/archive and restorable delete (#25).
+- Calendar create/update `--show-as` availability, preserving defaults when omitted (#26).
+- Optional per-action allowlists and explicit managed-automation mode. Normal CLI use stays unchanged; managed mode requires both service and action allowlists (#27).
 
-- Validate move/archive/delete completion status and message ID; preserve confirmed-write status on response failures and never replay uncertain moves.
-- Add rich message-list metadata, consistent immutable IDs, hidden-folder opt-in, explicit page coverage and bounded mutation summaries.
+### Fixes and behavior
+- Require HTTP 201 and a returned message ID before reporting a move/archive/delete as successful. Distinguish confirmed moves with unusable responses from indeterminate outcomes; never automatically replay a move.
+- Keep Deleted Items confirmation for friendly names and actual folder IDs. Ordinary move/archive/mark operations need no force. Delete always moves to Deleted Items; no permanent-delete action.
+- Add rich message-list metadata without bodies/attachments, immutable message IDs, hidden-folder opt-in, page coverage fields and bounded new mutation summaries. Follow the opaque next URL until complete; coverage does not imply recursive folder traversal.
+- Inbox triage explicitly selects the inbox. Reply/forward uses Microsoft's threaded actions; old `mail send --quote` still creates a new unthreaded message.
 
-- Add top-level `mail folders`, folder-aware listing and explicit newest-first ordering; keep the mailbox-wide default. Inbox triage now explicitly selects inbox (#14).
-- Add Microsoft's built-in threaded reply/reply-all, saved reply drafts and forward actions. Sending needs mail-send; saving reply drafts needs mail-write (#24).
-- Add mail-write mark read/unread, move/archive and restorable delete. All support dry-run. Delete keeps the existing confirmation/force rule and moves to Deleted Items, never permanent deletion. Moves into Deleted Items (including its actual folder ID) follow the same delete rule; other moves, archive and read-status updates need no force (#24).
-- Update the inbox-triage workflow, explain quoted new messages versus threaded replies, and regenerate mail references. Real Microsoft writes remain unverified.
+### Validation and upgrade notes
+- Linux/macOS source tests, payload fixtures, local previews, permission checks and generated command references cover the selected changes. Move-response regression was demonstrated failing before repair. Synthetic checks are not live Microsoft acceptance.
+- No new permissions, forced sign-in or account/credential format change. Sending needs mail-send; saved reply drafts and mailbox changes need mail-write; calendar changes need calendar-write. Existing selected-workload/grant limits remain enforced.
+- New Microsoft mailbox/calendar writes and work-account live acceptance remain unverified. Personal sign-in, reads and refresh results remain the historical 2.1.0 qualification. No installed CLI or Office changed by this release.
+- Fork Teams/chat/file-sharing integrations and obsolete auth scope changes are not included. The separate pre-existing calendar Teams-flag mismatch remains tracked in #15.
 
 ## 2.1.0 - 2026-10-27
 
