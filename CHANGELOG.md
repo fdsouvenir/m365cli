@@ -1,5 +1,9 @@
 ## Unreleased
 
+### 2.1.0 (prepared; not released)
+
+- Release config locks automatically on process termination and hold one transaction across profile, active-account, alias and configuration updates (#12, #6). Existing config and credential formats are unchanged.
+
 ## 2.0.0 - 2026-10-26
 
 - Add `M365CLI_CONFIG_DIR`, an absolute configuration, profile and file-keyring directory selector. Existing files and encryption formats are unchanged.

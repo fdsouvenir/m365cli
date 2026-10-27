@@ -167,29 +167,27 @@ func (s *Store) Upsert(record config.ProfileRecord, makeActive bool) error {
 		return err
 	}
 
-	cfg, err := config.ReadConfig()
-	if err != nil {
-		return fmt.Errorf("read config: %w", err)
-	}
-	if cfg.Profiles == nil {
-		cfg.Profiles = map[string]config.ProfileRecord{}
-	}
-
-	if makeActive {
-		for key, existing := range cfg.Profiles {
-			existing.Active = false
-			cfg.Profiles[key] = existing
+	return config.UpdateConfig(func(cfg *config.File) error {
+		if cfg.Profiles == nil {
+			cfg.Profiles = map[string]config.ProfileRecord{}
 		}
-		record.Active = true
-		cfg.ActiveProfile = record.Name
-	}
 
-	if !makeActive && record.Active {
-		cfg.ActiveProfile = record.Name
-	}
+		if makeActive {
+			for key, existing := range cfg.Profiles {
+				existing.Active = false
+				cfg.Profiles[key] = existing
+			}
+			record.Active = true
+			cfg.ActiveProfile = record.Name
+		}
 
-	cfg.Profiles[record.Name] = record
-	return config.WriteConfig(cfg)
+		if !makeActive && record.Active {
+			cfg.ActiveProfile = record.Name
+		}
+
+		cfg.Profiles[record.Name] = record
+		return nil
+	})
 }
 
 func (s *Store) Delete(name string) (bool, error) {
@@ -198,32 +196,32 @@ func (s *Store) Delete(name string) (bool, error) {
 		return false, err
 	}
 
-	cfg, err := config.ReadConfig()
-	if err != nil {
-		return false, fmt.Errorf("read config: %w", err)
-	}
-
-	if cfg.Profiles == nil {
-		return false, nil
-	}
-
-	if _, ok := cfg.Profiles[normalized]; !ok {
-		return false, nil
-	}
-
-	delete(cfg.Profiles, normalized)
-	if cfg.ActiveProfile == normalized {
-		cfg.ActiveProfile = ""
-	}
-
-	for key, p := range cfg.Profiles {
-		if p.Active && key != cfg.ActiveProfile {
-			p.Active = false
-			cfg.Profiles[key] = p
+	deleted := false
+	err = config.UpdateConfig(func(cfg *config.File) error {
+		if cfg.Profiles == nil {
+			return nil
 		}
-	}
 
-	return true, config.WriteConfig(cfg)
+		if _, ok := cfg.Profiles[normalized]; !ok {
+			return nil
+		}
+
+		delete(cfg.Profiles, normalized)
+		if cfg.ActiveProfile == normalized {
+			cfg.ActiveProfile = ""
+		}
+
+		for key, p := range cfg.Profiles {
+			if p.Active && key != cfg.ActiveProfile {
+				p.Active = false
+				cfg.Profiles[key] = p
+			}
+		}
+
+		deleted = true
+		return nil
+	})
+	return deleted, err
 }
 
 func (s *Store) SetActive(name string) error {
@@ -232,25 +230,23 @@ func (s *Store) SetActive(name string) error {
 		return err
 	}
 
-	cfg, err := config.ReadConfig()
-	if err != nil {
-		return fmt.Errorf("read config: %w", err)
-	}
-	if cfg.Profiles == nil {
-		return ErrProfileNotFound
-	}
+	return config.UpdateConfig(func(cfg *config.File) error {
+		if cfg.Profiles == nil {
+			return ErrProfileNotFound
+		}
 
-	if _, ok := cfg.Profiles[normalized]; !ok {
-		return ErrProfileNotFound
-	}
+		if _, ok := cfg.Profiles[normalized]; !ok {
+			return ErrProfileNotFound
+		}
 
-	for key, record := range cfg.Profiles {
-		record.Active = key == normalized
-		cfg.Profiles[key] = record
-	}
-	cfg.ActiveProfile = normalized
+		for key, record := range cfg.Profiles {
+			record.Active = key == normalized
+			cfg.Profiles[key] = record
+		}
+		cfg.ActiveProfile = normalized
 
-	return config.WriteConfig(cfg)
+		return nil
+	})
 }
 
 func (s *Store) Active() (config.ProfileRecord, error) {

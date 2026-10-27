@@ -1,7 +1,11 @@
 package config
 
 import (
+	"bufio"
+	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -113,10 +117,15 @@ func TestWithConfigLockTimesOut(t *testing.T) {
 		t.Fatalf("EnsureDir failed: %v", err)
 	}
 	lockPath := filepath.Join(dir, "config.lock")
-	if err := os.WriteFile(lockPath, []byte("locked"), 0o600); err != nil {
-		t.Fatalf("write lock file: %v", err)
+	holder, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Remove(lockPath) })
+	defer holder.Close()
+	if err := unix.Flock(int(holder.Fd()), unix.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	defer unix.Flock(int(holder.Fd()), unix.LOCK_UN)
 
 	prevTimeout := configLockTimeout
 	prevRetry := configLockRetryInterval
@@ -133,5 +142,39 @@ func TestWithConfigLockTimesOut(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "acquire config lock timeout") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestKilledConfigLockHolder(t *testing.T) {
+	if os.Getenv("M365CLI_LOCK_HELPER") == "1" {
+		err := withConfigLock(func() error {
+			fmt.Println("locked")
+			time.Sleep(time.Hour)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	setTempConfigEnv(t)
+	child := exec.Command(os.Args[0], "-test.run=^TestKilledConfigLockHolder$")
+	child.Env = append(os.Environ(), "M365CLI_LOCK_HELPER=1")
+	stdout, err := child.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := child.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = child.Process.Kill(); _ = child.Wait() }()
+	scanner := bufio.NewScanner(stdout)
+	if !scanner.Scan() || scanner.Text() != "locked" {
+		t.Fatal("child did not acquire lock")
+	}
+	_ = child.Process.Kill()
+	_ = child.Wait()
+	if _, err := ReadConfig(); err != nil {
+		t.Fatalf("killed holder blocked next reader: %v", err)
 	}
 }
