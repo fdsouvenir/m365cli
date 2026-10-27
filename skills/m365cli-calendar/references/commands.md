@@ -129,6 +129,8 @@ FLAGS
       --end=STRING               End datetime (RFC3339)
       --body=STRING              Optional body text
       --attendee=ATTENDEE,...    Attendee email (repeat for multiple)
+      --show-as=STRING           Availability: free, tentative, busy, oof,
+                                 workingElsewhere, or unknown
       --teams                    Add Teams meeting link
       --dry-run                  Preview create without creating the event
 
@@ -168,6 +170,8 @@ FLAGS
       --end=STRING               End datetime (RFC3339)
       --body=STRING              Body text
       --attendee=ATTENDEE,...    Attendee email (repeat for multiple)
+      --show-as=STRING           Availability: free, tentative, busy, oof,
+                                 workingElsewhere, or unknown
       --teams                    Add Teams meeting link
       --dry-run                  Preview update without modifying the event
 
