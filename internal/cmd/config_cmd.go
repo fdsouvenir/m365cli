@@ -64,21 +64,13 @@ type ConfigSetCmd struct {
 }
 
 func (c *ConfigSetCmd) Run(ctx context.Context) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
 
 	key, err := config.ParseKey(c.Key)
 	if err != nil {
 		return err
 	}
 
-	if err := config.SetValue(&cfg, key, c.Value); err != nil {
-		return err
-	}
-
-	if err := config.WriteConfig(cfg); err != nil {
+	if err := config.UpdateConfig(func(cfg *config.File) error { return config.SetValue(cfg, key, c.Value) }); err != nil {
 		return err
 	}
 
@@ -96,21 +88,13 @@ type ConfigUnsetCmd struct {
 }
 
 func (c *ConfigUnsetCmd) Run(ctx context.Context) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
-	}
 
 	key, err := config.ParseKey(c.Key)
 	if err != nil {
 		return err
 	}
 
-	if err := config.UnsetValue(&cfg, key); err != nil {
-		return err
-	}
-
-	if err := config.WriteConfig(cfg); err != nil {
+	if err := config.UpdateConfig(func(cfg *config.File) error { return config.UnsetValue(cfg, key) }); err != nil {
 		return err
 	}
 
