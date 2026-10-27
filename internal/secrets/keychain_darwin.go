@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/fdsouvenir/m365cli/internal/config"
+	"github.com/keybase/go-keychain"
 )
 
 const (
@@ -40,57 +41,54 @@ func nativeKeychainAvailable() bool {
 	return err == nil
 }
 
+// Keep the existing service/account mapping so saved credentials remain readable.
+func nativeKeychainQuery(key string) keychain.Item {
+	item := keychain.NewItem()
+	item.SetSecClass(keychain.SecClassGenericPassword)
+	item.SetService(config.AppName)
+	item.SetAccount(nativeKeychainAccount(key))
+	return item
+}
+
 func setNativeKeychainSecret(key string, value []byte) error {
-	account := nativeKeychainAccount(key)
-	output, err := runSecurity("add-generic-password", "-a", account, "-s", config.AppName, "-U", "-w", string(value))
+	item := nativeKeychainQuery(key)
+	item.SetData(value)
+	err := keychain.AddItem(item)
+	if errors.Is(err, keychain.ErrorDuplicateItem) {
+		update := keychain.NewItem()
+		update.SetData(value)
+		err = keychain.UpdateItem(nativeKeychainQuery(key), update)
+	}
 	if err != nil {
-		return formatSecurityError("store keychain secret", err, output)
+		return fmt.Errorf("store keychain secret: %w", err)
 	}
 	return nil
 }
 
 func getNativeKeychainSecret(key string) ([]byte, error) {
-	account := nativeKeychainAccount(key)
-	output, err := runSecurity("find-generic-password", "-a", account, "-s", config.AppName, "-w")
-	if err != nil {
-		if isKeychainItemNotFound(output) {
-			return nil, os.ErrNotExist
-		}
-		return nil, formatSecurityError("read keychain secret", err, output)
+	item := nativeKeychainQuery(key)
+	item.SetMatchLimit(keychain.MatchLimitOne)
+	item.SetReturnData(true)
+	results, err := keychain.QueryItem(item)
+	if errors.Is(err, keychain.ErrorItemNotFound) || (err == nil && len(results) == 0) {
+		return nil, os.ErrNotExist
 	}
-	return output, nil
+	if err != nil {
+		return nil, fmt.Errorf("read keychain secret: %w", err)
+	}
+	return results[0].Data, nil
 }
 
 func deleteNativeKeychainSecret(key string) error {
-	account := nativeKeychainAccount(key)
-	output, err := runSecurity("delete-generic-password", "-a", account, "-s", config.AppName)
-	if err != nil && !isKeychainItemNotFound(output) {
-		return formatSecurityError("delete keychain secret", err, output)
+	err := keychain.DeleteItem(nativeKeychainQuery(key))
+	if err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
+		return fmt.Errorf("delete keychain secret: %w", err)
 	}
 	return nil
 }
 
 func nativeKeychainAccount(key string) string {
 	return config.AppName + ":" + base64.RawURLEncoding.EncodeToString([]byte(strings.TrimSpace(key)))
-}
-
-func runSecurity(args ...string) ([]byte, error) {
-	cmd := execCommandContextFunc(context.Background(), "security", args...)
-	return cmd.CombinedOutput()
-}
-
-func isKeychainItemNotFound(output []byte) bool {
-	msg := strings.ToLower(strings.TrimSpace(string(output)))
-	return strings.Contains(msg, "could not be found") ||
-		strings.Contains(msg, "item not found")
-}
-
-func formatSecurityError(action string, runErr error, output []byte) error {
-	message := strings.TrimSpace(string(output))
-	if message == "" {
-		return fmt.Errorf("%s: %w", action, runErr)
-	}
-	return fmt.Errorf("%s: %w (%s)", action, runErr, message)
 }
 
 // loginKeychainPath returns the path to the user's login keychain.

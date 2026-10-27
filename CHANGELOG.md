@@ -1,5 +1,9 @@
 ## Unreleased
 
+### 2.1.0 (prepared; not released)
+
+- Store macOS credentials through the native Security framework, never token-bearing subprocess arguments (#5). Existing Keychain service/account names and stored values remain readable without sign-in.
+
 ## 2.0.0 - 2026-10-26
 
 - Add `M365CLI_CONFIG_DIR`, an absolute configuration, profile and file-keyring directory selector. Existing files and encryption formats are unchanged.
