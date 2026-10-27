@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/alecthomas/kong v1.13.0
 	github.com/charmbracelet/huh v0.8.0
+	github.com/keybase/go-keychain v0.0.1
 )
 
 require (

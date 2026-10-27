@@ -1,7 +1,8 @@
 ## Unreleased
 
-### 2.1.0 (prepared; not released)
+## 2.1.0 - 2026-10-27
 
+- Store macOS credentials through the native Security framework, never token-bearing subprocess arguments (#5). Existing Keychain service/account names and stored values remain readable without sign-in.
 - Add read/read-write calendar, contacts, tasks and OneDrive workloads; retain all existing workload scopes. Same-service write permissions cover reads (#10).
 - Publish the shared workload catalog and generated login help; correct OneDrive syntax and exact dry-run support (#17, #22).
 - Inspect and record Microsoft's actual delegated grant separately from token refresh; report both selection/grant differences and enforce recorded selection locally (#22).
