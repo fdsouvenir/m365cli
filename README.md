@@ -139,6 +139,20 @@ Tenant policy may withhold selected permissions; the command explains that rathe
 than exposing a generic consent-required error. Add capabilities by signing in
 with the intended union of workloads.
 
+#### Personal-account qualification (2026-10-27)
+
+A real personal account passed `auto` device-code sign-in, refresh-token import,
+Graph identity verification, reads in mail/calendar/contacts/To Do/OneDrive and a
+normal token refresh after expiring only the isolated test cache. The saved type
+was `consumer` with authority `consumers`. An unselected write was refused with
+zero provider connections. No real-data writes or existing-store changes were made.
+
+For that account, Microsoft's `.default` response returned the literal marker,
+not concrete granted scope names. Login/check/status therefore report the grant,
+scopes and both differences as unknown/null. Neither the complete grant nor an
+older broader grant was verified; successful reads do not prove the full grant.
+Work-account auto detection still needs live tenant consent to qualify.
+
 ### Multiple accounts
 
 Profiles isolate credentials and saved account/tenant identity. `--account NAME`
