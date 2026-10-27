@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Later release (Outlook basics; draft after 2.1.0)
+
+- Add top-level `mail folders`, folder-aware listing and explicit newest-first ordering; keep the mailbox-wide default. Inbox triage now explicitly selects inbox (#14).
+- Add Microsoft's built-in threaded reply/reply-all, saved reply drafts and forward actions. Sending needs mail-send; saving reply drafts needs mail-write (#24).
+- Add mail-write mark read/unread, move/archive and restorable delete. All support dry-run. Delete keeps the existing confirmation/force rule and moves to Deleted Items, never permanent deletion (#24).
+- Update the inbox-triage workflow, explain quoted new messages versus threaded replies, and regenerate mail references. Real Microsoft writes remain unverified.
+
 ### 2.1.0 (prepared; not released)
 
 - Add read/read-write calendar, contacts, tasks and OneDrive workloads; retain all existing workload scopes. Same-service write permissions cover reads (#10).

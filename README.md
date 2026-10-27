@@ -198,13 +198,58 @@ m365cli --account work groups list --json
 ```
 
 `--json` provides structured output; `--plain` provides TSV for supported tables.
-Use `--help` for exact service flags. `--dry-run` is available for mail send/draft, calendar create/update/delete,
+Use `--help` for exact service flags. `--dry-run` is available for mail writes (including the later-release Outlook commands below), calendar create/update/delete,
 OneDrive put/mkdir/rm and every Excel write. Contacts and To Do writes do not
 support it. Destructive operations require confirmation or explicit `--force` in
 noninteractive execution.
 A preview does not authorize a write. Server-error responses to writes are not
 automatically retried: check the remote result before repeating an uncertain send,
 create or append.
+
+### Outlook basics (later-release draft; not part of 2.1.0)
+
+`mail folders --json` lists top-level folders with IDs, parent IDs, child counts
+and unread/total counts. It supports `--max` and `--page` like other lists.
+`mail list --folder` accepts `inbox`, `sent`, `drafts`, `archive`, `deleted`, `junk`
+or an explicit folder ID. Without the flag, listing remains mailbox-wide.
+Normal pages are ordered by `receivedDateTime desc`; `--query` keeps Outlook
+search's server-side sent-time ordering. Follow the returned continuation without
+rewriting it when paging the same account and selection.
+
+```sh
+m365cli --account personal mail folders --json
+m365cli --account personal mail list --folder inbox --max 20 --json
+m365cli --account personal mail reply MESSAGE_ID --body "Thanks for the update" --dry-run
+m365cli --account personal mail reply MESSAGE_ID --reply-all --body "Reply text" --draft --dry-run
+m365cli --account personal mail forward MESSAGE_ID --to recipient@example.com --body "For review" --dry-run
+m365cli --account personal mail mark-read MESSAGE_ID --dry-run
+m365cli --account personal mail mark-unread MESSAGE_ID --dry-run
+m365cli --account personal mail move MESSAGE_ID --folder FOLDER_ID --dry-run
+m365cli --account personal mail archive MESSAGE_ID --dry-run
+m365cli --account personal mail delete MESSAGE_ID --dry-run
+```
+
+Sending replies/reply-all and forwards uses `mail-send`. Saving a threaded reply
+with `mail reply --draft` uses `mail-write`, not `mail-send`. These use Microsoft's
+built-in `reply`, `replyAll`, `forward`, `createReply` and `createReplyAll` actions;
+Graph keeps the thread and chooses original reply recipients. By contrast,
+`mail send --quote` and `mail draft` create new, unthreaded messages.
+
+Marking read/unread, moving, archiving and deleting uses `mail-write`. All new mail
+writes support `--dry-run` without provider calls. Like other updates, mark,
+move and archive do not add a confirmation prompt. Delete uses the existing
+confirmation/`--force` rule and **moves mail to Deleted Items**, where the person
+can restore it. It never calls Graph `DELETE` or permanent-delete APIs. Microsoft
+[documents the exact call](https://learn.microsoft.com/en-us/graph/api/message-move):
+`POST /me/messages/{id}/move` with `{"destinationId":"deleteditems"}` (or the
+existing `/users/{id}/messages/{id}/move` route for app-only profiles).
+
+Move/archive/delete JSON includes `action`, `source_id`, destination `folder` and
+Microsoft's returned `message`, including its new ID. Reply drafts return the
+created Graph message; sent replies/forwards report `sent: true` and their source.
+A dry-run does not authorize sending or changing mail. Live Microsoft writes and
+live service acceptance remain unverified; synthetic HTTP fixtures are not a real
+mailbox qualification.
 
 ### Pagination
 
