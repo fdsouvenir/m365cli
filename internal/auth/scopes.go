@@ -7,13 +7,15 @@ import (
 )
 
 func DelegatedScopeWorkloadNames() []string {
-	out := make([]string, len(delegatedScopeWorkloadOrder))
-	copy(out, delegatedScopeWorkloadOrder)
+	out := make([]string, 0, len(workloadCatalog))
+	for _, w := range workloadCatalog {
+		out = append(out, w.ID)
+	}
 	return out
 }
 
 func DelegatedScopeWorkloadsHelp() string {
-	return strings.Join(delegatedScopeWorkloadOrder, ",")
+	return strings.Join(DelegatedScopeWorkloadNames(), ",")
 }
 
 func ParseScopeWorkloadsCSV(value string) ([]string, error) {
@@ -33,14 +35,14 @@ func NormalizeScopeWorkloads(workloads []string) ([]string, error) {
 		if name == "" {
 			continue
 		}
-		if _, ok := delegatedScopeWorkloadMap[name]; !ok {
+		if _, ok := WorkloadByID(name); !ok {
 			return nil, fmt.Errorf("invalid delegated scope workload %q (valid: %s)", name, DelegatedScopeWorkloadsHelp())
 		}
 		seen[name] = struct{}{}
 	}
 
 	out := make([]string, 0, len(seen))
-	for _, workload := range delegatedScopeWorkloadOrder {
+	for _, workload := range DelegatedScopeWorkloadNames() {
 		if _, ok := seen[workload]; ok {
 			out = append(out, workload)
 		}
@@ -62,7 +64,8 @@ func DelegatedScopesForWorkloads(workloads []string) ([]string, error) {
 	scopes := make([]string, 0, len(BaseDelegatedScopes)+len(AllDelegatedWorkloadScopes))
 	scopes = append(scopes, BaseDelegatedScopes...)
 	for _, workload := range normalized {
-		scopes = append(scopes, delegatedScopeWorkloadMap[workload]...)
+		entry, _ := WorkloadByID(workload)
+		scopes = append(scopes, entry.Scopes...)
 	}
 
 	return normalizeScopes(scopes), nil
@@ -127,6 +130,12 @@ func scopeSetContainsAll(granted []string, required []string) bool {
 	for _, scope := range granted {
 		key := strings.ToLower(strings.TrimSpace(scope))
 		grantedSet[key] = struct{}{}
+		shortScope := stripGraphPrefix(key)
+		for _, service := range []string{"mail", "calendars", "contacts", "tasks", "files"} {
+			if shortScope == service+".readwrite" {
+				grantedSet[service+".read"] = struct{}{}
+			}
+		}
 		// Azure AD returns scopes as full URLs (e.g.
 		// "https://graph.microsoft.com/Mail.Read"). Also index by the
 		// short form so callers using "Mail.Read" match correctly.

@@ -2,6 +2,12 @@
 
 ### 2.1.0 (prepared; not released)
 
+- Add read/read-write calendar, contacts, tasks and OneDrive workloads; retain all existing workload scopes. Same-service write permissions cover reads (#10).
+- Publish the shared workload catalog and generated login help; correct OneDrive syntax and exact dry-run support (#17, #22).
+- Inspect and record Microsoft's actual delegated grant separately from token refresh; report both selection/grant differences and enforce recorded selection locally (#22).
+- Document stable version/status/check/login/workloads JSON: minor versions add fields; renames/removals require a major version and changelog notice (#22).
+- Add delegated audience auto, default interactively, with common sign-in/import and ID-token tenant detection; save the detected personal/tenant authority (#22).
+- Live personal qualification (2026-10-27): auto sign-in/import, identity, five read services, normal refresh and zero-provider-connection write refusal passed. Microsoft returned literal .default instead of concrete granted scopes, so grant and both differences remain unknown. Work-account live detection remains unverified; no real-data writes or existing-store changes.
 - Release config locks automatically on process termination and hold one transaction across profile, active-account, alias and configuration updates (#12, #6). Existing config and credential formats are unchanged.
 
 ## 2.0.0 - 2026-10-26

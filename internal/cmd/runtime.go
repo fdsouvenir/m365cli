@@ -61,14 +61,13 @@ const (
 )
 
 type capabilityRule struct {
-	allowedAudiences           []string
 	allowedAuthModes           []string
 	unsupportedAudienceMessage string
 	unsupportedAuthModeMessage string
 }
 
 var capabilityRules = map[runtimeCapability]capabilityRule{
-	capExcel:          {allowedAudiences: []string{profile.AudienceEnterprise}, allowedAuthModes: []string{profile.AuthModeDelegated}, unsupportedAudienceMessage: "Excel Graph workbook operations require business OneDrive or SharePoint; personal accounts are not supported.", unsupportedAuthModeMessage: "Excel requires delegated user sign-in; application-only permissions are not supported."},
+	capExcel:          {allowedAuthModes: []string{profile.AuthModeDelegated}, unsupportedAudienceMessage: "Excel Graph workbook operations require business OneDrive or SharePoint; personal accounts are not supported.", unsupportedAuthModeMessage: "Excel requires delegated user sign-in; application-only permissions are not supported."},
 	capMailList:       delegatedOrAppOnlyRule(),
 	capMailGet:        delegatedOrAppOnlyRule(),
 	capMailSend:       delegatedOrAppOnlyRule(),
@@ -102,10 +101,6 @@ var capabilityRules = map[runtimeCapability]capabilityRule{
 
 func delegatedOnlyRule(message string) capabilityRule {
 	return capabilityRule{
-		allowedAudiences: []string{
-			profile.AudienceConsumer,
-			profile.AudienceEnterprise,
-		},
 		allowedAuthModes: []string{
 			profile.AuthModeDelegated,
 		},
@@ -115,10 +110,6 @@ func delegatedOnlyRule(message string) capabilityRule {
 
 func delegatedOrAppOnlyRule() capabilityRule {
 	return capabilityRule{
-		allowedAudiences: []string{
-			profile.AudienceConsumer,
-			profile.AudienceEnterprise,
-		},
 		allowedAuthModes: []string{
 			profile.AuthModeDelegated,
 			profile.AuthModeAppOnly,
@@ -128,9 +119,6 @@ func delegatedOrAppOnlyRule() capabilityRule {
 
 func groupsRule() capabilityRule {
 	return capabilityRule{
-		allowedAudiences: []string{
-			profile.AudienceEnterprise,
-		},
 		allowedAuthModes: []string{
 			profile.AuthModeDelegated,
 			profile.AuthModeAppOnly,
@@ -165,7 +153,7 @@ func resolveRuntime(ctx context.Context, capability runtimeCapability) (*runtime
 			}
 			return authManager.AcquireAppOnlyToken(ctx, activeProfile.Name, activeProfile.ClientID, activeProfile.Authority)
 		default:
-			return authManager.AcquireDelegatedToken(
+			token, err := authManager.AcquireDelegatedToken(
 				ctx,
 				activeProfile.Name,
 				activeProfile.ClientID,
@@ -174,6 +162,10 @@ func resolveRuntime(ctx context.Context, capability runtimeCapability) (*runtime
 				activeProfile.AccountID,
 				activeProfile.TenantID,
 			)
+			if err != nil && len(activeProfile.DelegatedScopeWorkloads) > 0 && (strings.Contains(err.Error(), "AADSTS65001") || strings.Contains(err.Error(), "did not grant")) {
+				return "", errfmt.NewUserFacingError("Workload "+workloadForCapability(capability)+" was selected, but Microsoft did not grant the required permissions; check tenant policy or sign in again.", nil)
+			}
+			return token, err
 		}
 	})
 
@@ -197,7 +189,9 @@ func validateCapability(activeProfile config.ProfileRecord, capability runtimeCa
 		return errfmt.NewUserFacingError(appOnlyEnterpriseOnlyMessage, nil)
 	}
 
-	if !containsRuleValue(rule.allowedAudiences, audience) {
+	entry, catalogued := auth.WorkloadByID(workloadForCapability(capability))
+	audienceAllowed := catalogued && ((audience == profile.AudienceConsumer && entry.Personal) || (audience == profile.AudienceEnterprise && entry.Work))
+	if !audienceAllowed {
 		message := strings.TrimSpace(rule.unsupportedAudienceMessage)
 		if message == "" {
 			message = "This command is not supported for the active profile audience."
@@ -215,7 +209,46 @@ func validateCapability(activeProfile config.ProfileRecord, capability runtimeCa
 		return errfmt.NewUserFacingError(message, nil)
 	}
 
+	if authMode == profile.AuthModeDelegated && len(activeProfile.DelegatedScopeWorkloads) > 0 {
+		workload := workloadForCapability(capability)
+		entry, _ := auth.WorkloadByID(workload)
+		selected := []string{}
+		for _, id := range activeProfile.DelegatedScopeWorkloads {
+			w, _ := auth.WorkloadByID(id)
+			if w.Service == entry.Service {
+				selected = append(selected, w.Scopes...)
+			}
+		}
+		if !auth.ScopesCover(selected, entry.Scopes) {
+			return errfmt.NewUserFacingError("This profile did not select "+workload+"; add workload "+workload+" with auth login.", nil)
+		}
+		required := entry.Scopes
+		if capability == capGroupsList || capability == capGroupsGet {
+			required = []string{"Group.Read.All"}
+		}
+		if capability == capGroupsMembers {
+			required = []string{"GroupMember.Read.All"}
+		}
+		if activeProfile.Grant != nil && activeProfile.Grant.Status == "known" && !auth.ScopesCover(activeProfile.Grant.Scopes, required) {
+			return errfmt.NewUserFacingError("Workload "+workload+" was selected, but Microsoft did not grant its required permissions; check tenant policy or sign in again.", nil)
+		}
+	}
 	return nil
+}
+
+func workloadForCapability(capability runtimeCapability) string {
+	parts := strings.Split(string(capability), ".")
+	if len(parts) == 1 || parts[0] == "groups" {
+		return parts[0]
+	}
+	access := "write"
+	switch parts[1] {
+	case "list", "lists", "get", "ls":
+		access = "read"
+	case "send":
+		access = "send"
+	}
+	return parts[0] + "-" + access
 }
 
 func normalizeAudience(value string) string {
@@ -268,6 +301,9 @@ func resolveAppOnlyTargetUser(activeProfile config.ProfileRecord, override strin
 }
 
 func defaultAuthority(audience string, tenant string, explicit string) string {
+	if audience == "auto" {
+		return "common"
+	}
 	if strings.TrimSpace(explicit) != "" {
 		return strings.TrimSpace(explicit)
 	}

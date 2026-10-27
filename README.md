@@ -67,10 +67,10 @@ the package. `M365CLI_CLIENT_ID` supplies the ID without repeating it per login.
 
 ```sh
 m365cli auth status --json
-m365cli auth login --profile personal --audience consumer \
+m365cli auth login --profile personal --audience auto \
   --scope-workloads mail-read,mail-send --no-input --json
 m365cli auth login --profile work --audience enterprise \
-  --scope-workloads mail-read,mail-send,calendar,onedrive,excel --no-input --json
+  --scope-workloads mail-read,mail-send,calendar-read,onedrive-read,excel --no-input --json
 m365cli --account work auth check --json
 ```
 
@@ -78,7 +78,14 @@ m365cli --account work auth check --json
 tenant; otherwise sign-in uses `organizations`. The login command waits for
 Microsoft sign-in and consent. `--no-input` disables terminal questions; Microsoft
 consent is still required.
-Sign-in uses Microsoft's device-code flow.
+Sign-in uses Microsoft's device-code flow. Delegated `--audience auto` (the interactive
+default) signs in through `common`, including refresh-token imports. The ID token's
+tenant ID detects personal accounts (`9188040d-6c67-4c5b-b112-36a304b66dad`) or a
+work account in another tenant. The saved profile uses `consumer`/`consumers`, or
+`enterprise`/the detected tenant ID, including for later token refresh.
+`auto` cannot be combined with `excel`, `groups` or `--tenant`; use
+`--audience enterprise` for those. Work-account detection needs live tenant consent
+to qualify; offline fixtures are not a live work-account acceptance.
 Groups always require tenant-administrator consent. Organization policy may also
 require it for other services. Verify service authorization separately after sign-in;
 report blocked access without asking the person to create a tenant or granting
@@ -90,19 +97,61 @@ additional permissions.
 |---|---|
 | `mail-read` | `Mail.Read` |
 | `mail-send` | `Mail.Send` |
-| `mail-write` | `Mail.ReadWrite` (drafts) |
-| `mail` | `Mail.Read`, `Mail.Send` (compatibility bundle) |
-| `calendar` | `Calendars.Read`, `Calendars.ReadWrite` |
-| `contacts` | `Contacts.Read`, `Contacts.ReadWrite` |
-| `tasks` | `Tasks.Read`, `Tasks.ReadWrite` |
-| `onedrive` | `Files.Read`, `Files.ReadWrite` |
+| `mail-write` | `Mail.ReadWrite` (read, modify and save drafts; not send) |
+| `calendar-read` / `calendar-write` | `Calendars.Read` / `Calendars.ReadWrite` |
+| `contacts-read` / `contacts-write` | `Contacts.Read` / `Contacts.ReadWrite` |
+| `tasks-read` / `tasks-write` | `Tasks.Read` / `Tasks.ReadWrite` |
+| `onedrive-read` / `onedrive-write` | `Files.Read` / `Files.ReadWrite` |
+| `mail` (compatibility) | `Mail.Read`, `Mail.Send` |
+| `calendar` (compatibility) | `Calendars.Read`, `Calendars.ReadWrite` |
+| `contacts` (compatibility) | `Contacts.Read`, `Contacts.ReadWrite` |
+| `tasks` (compatibility) | `Tasks.Read`, `Tasks.ReadWrite` |
+| `onedrive` (compatibility) | `Files.Read`, `Files.ReadWrite` |
 | `excel` | `Files.ReadWrite` |
 | `groups` | `Group.Read.All`, `GroupMember.Read.All` |
 
-Other than the individual mail selections, these service bundles include writes.
-Request workloads together and reauthorize with the intended union when adding
-capabilities. Local configuration changes do not
-revoke consent. Missing scopes are not silently treated as consent via `.default`.
+Identity/offline scopes are `openid`, `profile`, `offline_access` and `User.Read`.
+`auth workloads --json` is the source of truth for menu choices and account eligibility.
+Each same-service write permission covers reads, but `Mail.ReadWrite` does not grant
+`Mail.Send`. Unrelated scopes and `.default` never prove delegated command access.
+Excel cannot be read-only: Microsoft's workbook APIs require `Files.ReadWrite` even
+for reads. **`excel` grants read and write access to all of the person's OneDrive
+files, not just workbooks.** It requires a delegated work account and business storage.
+
+For delegated profiles with a recorded workload selection, that selection limits
+commands locally, even if Microsoft still has a broader earlier grant. A refused
+command names the workload to add. Profiles saved without a recorded selection
+keep their previous behavior. App-only authorization is unchanged.
+
+`auth check --json` reads the current Graph grant through a refresh request for
+`https://graph.microsoft.com/.default`, following [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc#the-default-scope).
+This is inspection only, never a delegated sign-in scope or command-authorization
+shortcut. The inspection access token is discarded; only concrete scope names and
+the check time are saved on the profile. Refresh-token rotation stays in the
+existing encrypted cache. Login (including refresh-token imports) also checks the
+grant. Status shows the last saved check, not a fresh provider read.
+
+Grant differences show selected workload IDs that Microsoft did not grant and
+concrete scopes granted but not selected. Signing in with fewer workloads does
+not revoke earlier consent at Microsoft. A missing/unusable provider scope list is
+reported as unknown, never inferred from the last command's cached token.
+Tenant policy may withhold selected permissions; the command explains that rather
+than exposing a generic consent-required error. Add capabilities by signing in
+with the intended union of workloads.
+
+#### Personal-account qualification (2026-10-27)
+
+A real personal account passed `auto` device-code sign-in, refresh-token import,
+Graph identity verification, reads in mail/calendar/contacts/To Do/OneDrive and a
+normal token refresh after expiring only the isolated test cache. The saved type
+was `consumer` with authority `consumers`. An unselected write was refused with
+zero provider connections. No real-data writes or existing-store changes were made.
+
+For that account, Microsoft's `.default` response returned the literal marker,
+not concrete granted scope names. Login/check/status therefore report the grant,
+scopes and both differences as unknown/null. Neither the complete grant nor an
+older broader grant was verified; successful reads do not prove the full grant.
+Work-account auto detection still needs live tenant consent to qualify.
 
 ### Multiple accounts
 
@@ -144,13 +193,15 @@ m365cli --account personal mail list --max 20 --json
 m365cli --account work calendar list --help
 m365cli --account work contacts list --json
 m365cli --account work tasks lists --json
-m365cli --account work onedrive ls / --json
+m365cli --account work onedrive ls --path / --json
 m365cli --account work groups list --json
 ```
 
 `--json` provides structured output; `--plain` provides TSV for supported tables.
-Use `--help` for exact service flags. Supported writes have `--dry-run`; destructive
-operations require confirmation or explicit `--force` in noninteractive execution.
+Use `--help` for exact service flags. `--dry-run` is available for mail send/draft, calendar create/update/delete,
+OneDrive put/mkdir/rm and every Excel write. Contacts and To Do writes do not
+support it. Destructive operations require confirmation or explicit `--force` in
+noninteractive execution.
 A preview does not authorize a write. Server-error responses to writes are not
 automatically retried: check the remote result before repeating an uncertain send,
 create or append.
@@ -171,7 +222,8 @@ Operate on existing `.xlsx` workbooks in business OneDrive or SharePoint. Discov
 the item ID using OneDrive, then use `--workbook ITEM_ID`; `--drive DRIVE_ID`
 selects another business drive. Microsoft Graph workbook APIs do not support
 consumer storage or application-only authentication. Even reads require
-`Files.ReadWrite`.
+`Files.ReadWrite`. This grants read and write access to all of the person's
+OneDrive files, not just workbooks.
 
 ```sh
 m365cli --account work excel worksheets list --workbook ITEM_ID --json
@@ -192,6 +244,115 @@ table creation and row append are also available; see `excel --help`.
 Microsoft's [Excel overview](https://learn.microsoft.com/en-us/graph/api/resources/excel?view=graph-rest-1.0)
 explicitly excludes consumer storage, despite some individual API permission tables
 listing personal delegated permissions. This version follows the storage boundary.
+
+## Stable JSON interface
+
+These five `--json` outputs are a public contract. Fields are added only in minor
+releases. Renaming/removing a field requires a major release and an explicit
+changelog entry. Consumers must accept additional fields. Existing optional
+profile fields still disappear when empty; the documented-field test exercises a
+populated profile so renaming an optional field is caught too.
+
+The following field paths are machine-checked documentation (`[]` means each item):
+
+<!-- m365cli-json-contract -->
+```json
+{
+  "version": [
+    "version",
+    "commit",
+    "date"
+  ],
+  "auth login": [
+    "profile",
+    "audience",
+    "mode",
+    "active",
+    "account_id",
+    "username",
+    "tenant_id",
+    "selected_workloads",
+    "grant.status",
+    "grant.scopes",
+    "grant.checked_at",
+    "grant.reason",
+    "grant.selected_not_granted",
+    "grant.granted_not_selected"
+  ],
+  "auth check": [
+    "profile",
+    "verified",
+    "identity",
+    "audience",
+    "selected_workloads",
+    "grant.status",
+    "grant.scopes",
+    "grant.checked_at",
+    "grant.reason",
+    "grant.selected_not_granted",
+    "grant.granted_not_selected"
+  ],
+  "auth status": [
+    "profiles[].name",
+    "profiles[].audience",
+    "profiles[].client_id",
+    "profiles[].authority",
+    "profiles[].tenant_id",
+    "profiles[].account_id",
+    "profiles[].username",
+    "profiles[].auth_mode",
+    "profiles[].delegated_scope_workloads",
+    "profiles[].app_only_user",
+    "profiles[].active",
+    "profiles[].grant.status",
+    "profiles[].grant.scopes",
+    "profiles[].grant.checked_at",
+    "profiles[].grant.reason",
+    "profiles[].grant.selected_not_granted",
+    "profiles[].grant.granted_not_selected"
+  ],
+  "auth workloads": [
+    "workloads[].id",
+    "workloads[].service",
+    "workloads[].label",
+    "workloads[].access",
+    "workloads[].scopes",
+    "workloads[].personal",
+    "workloads[].work",
+    "workloads[].tenant_admin_consent",
+    "workloads[].compatibility_bundle",
+    "workloads[].notes"
+  ]
+}
+```
+<!-- /m365cli-json-contract -->
+
+- `version`: version string, source commit string and build date string (the latter
+  two may be empty in un-stamped builds).
+- Login: `profile` is the saved profile name; `audience` is the detected/specified
+  `consumer` or `enterprise` type, `mode` is `delegated` or `app_only`, `active` is a
+  boolean. `account_id`, `username` and `tenant_id` are account-identity strings
+  (empty where unavailable, such as app-only). `selected_workloads` is a string
+  array, or null for app-only.
+- Check: `verified` is the boolean Graph identity result; `identity` is Microsoft's
+  `/me` object, whose provider-owned fields are not a CLI schema. `profile`,
+  `audience` and `selected_workloads` identify the checked selection.
+- Status: `profiles` is an array. Each has the existing name, audience and client ID;
+  optional authority, tenant/account IDs, username, auth mode, selected delegated
+  workload array, default app-only user and active boolean keep their old names.
+- `grant`: `status` is `known` or `unknown`; `scopes` is an array of concrete scope
+  names, or null when unknown; `checked_at` is an RFC3339 UTC timestamp, or null
+  before the first check; `reason` is an explanatory string (empty for known).
+  `selected_not_granted` is an array of workload IDs; `granted_not_selected` is an
+  array of extra scope names. Both are null when the grant or recorded selection
+  is unknown, and empty arrays when checked with no differences. The same grant
+  shape appears in login, check and every status profile, including legacy profiles.
+- Workloads: `workloads` is an array; `id`, `service`, `label`, `access` and `notes`
+  are strings. `access` is `read`, `read/write` or `send`; `scopes` is the exact
+  Graph workload-scope array (identity scopes are separate). `personal`, `work`,
+  `tenant_admin_consent` and `compatibility_bundle` are booleans. Admin consent
+  describes Microsoft's baseline requirement; tenant policy can require it for
+  other workloads. Compatibility bundles retain their exact pre-2.1 scopes.
 
 ## Skills
 
