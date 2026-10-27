@@ -2,24 +2,34 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"time"
 )
 
+type GrantRecord struct {
+	Status    string     `json:"status"`
+	Scopes    []string   `json:"scopes"`
+	CheckedAt *time.Time `json:"checked_at"`
+	Reason    string     `json:"reason"`
+}
+
 type ProfileRecord struct {
-	Name                    string   `json:"name"`
-	Audience                string   `json:"audience"`
-	ClientID                string   `json:"client_id"`
-	Authority               string   `json:"authority,omitempty"`
-	TenantID                string   `json:"tenant_id,omitempty"`
-	AccountID               string   `json:"account_id,omitempty"`
-	Username                string   `json:"username,omitempty"`
-	AuthMode                string   `json:"auth_mode,omitempty"`
-	DelegatedScopeWorkloads []string `json:"delegated_scope_workloads,omitempty"`
-	AppOnlyUser             string   `json:"app_only_user,omitempty"`
-	Active                  bool     `json:"active,omitempty"`
+	Grant                   *GrantRecord `json:"grant,omitempty"`
+	Name                    string       `json:"name"`
+	Audience                string       `json:"audience"`
+	ClientID                string       `json:"client_id"`
+	Authority               string       `json:"authority,omitempty"`
+	TenantID                string       `json:"tenant_id,omitempty"`
+	AccountID               string       `json:"account_id,omitempty"`
+	Username                string       `json:"username,omitempty"`
+	AuthMode                string       `json:"auth_mode,omitempty"`
+	DelegatedScopeWorkloads []string     `json:"delegated_scope_workloads,omitempty"`
+	AppOnlyUser             string       `json:"app_only_user,omitempty"`
+	Active                  bool         `json:"active,omitempty"`
 }
 
 type File struct {
@@ -47,30 +57,32 @@ func ConfigPath() (string, error) {
 }
 
 func WriteConfig(cfg File) error {
-	return withConfigLock(func() error {
-		path, err := ConfigPath()
-		if err != nil {
-			return err
-		}
+	return withConfigLock(func() error { return writeConfig(cfg) })
+}
 
-		b, err := json.MarshalIndent(cfg, "", "  ")
-		if err != nil {
-			return fmt.Errorf("encode config json: %w", err)
-		}
+func writeConfig(cfg File) error {
+	path, err := ConfigPath()
+	if err != nil {
+		return err
+	}
 
-		b = append(b, '\n')
-		tmp := path + ".tmp"
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode config json: %w", err)
+	}
 
-		if err := os.WriteFile(tmp, b, 0o600); err != nil {
-			return fmt.Errorf("write config: %w", err)
-		}
+	b = append(b, '\n')
+	tmp := path + ".tmp"
 
-		if err := os.Rename(tmp, path); err != nil {
-			return fmt.Errorf("commit config: %w", err)
-		}
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
 
-		return nil
-	})
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("commit config: %w", err)
+	}
+
+	return nil
 }
 
 func ConfigExists() (bool, error) {
@@ -92,37 +104,44 @@ func ConfigExists() (bool, error) {
 
 func ReadConfig() (File, error) {
 	var cfg File
-	err := withConfigLock(func() error {
-		path, pathErr := ConfigPath()
-		if pathErr != nil {
-			return pathErr
-		}
+	err := withConfigLock(func() error { var err error; cfg, err = readConfig(); return err })
+	return cfg, err
+}
 
-		b, readErr := os.ReadFile(path) //nolint:gosec // config file path
-		if readErr != nil {
-			if os.IsNotExist(readErr) {
-				cfg = File{}
-				return nil
-			}
-
-			return fmt.Errorf("read config: %w", readErr)
-		}
-
-		if unmarshalErr := json.Unmarshal(b, &cfg); unmarshalErr != nil {
-			return fmt.Errorf("parse config %s: %w", path, unmarshalErr)
-		}
-
-		return nil
-	})
+func readConfig() (File, error) {
+	path, err := ConfigPath()
 	if err != nil {
 		return File{}, err
 	}
-
+	cfg := File{Profiles: map[string]ProfileRecord{}}
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return cfg, nil
+	}
+	if err != nil {
+		return File{}, fmt.Errorf("read config: %w", err)
+	}
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return File{}, fmt.Errorf("parse config %s: %w", path, err)
+	}
 	if cfg.Profiles == nil {
 		cfg.Profiles = map[string]ProfileRecord{}
 	}
-
 	return cfg, nil
+}
+
+// UpdateConfig holds one lock across the entire read-modify-write transaction.
+func UpdateConfig(update func(*File) error) error {
+	return withConfigLock(func() error {
+		cfg, err := readConfig()
+		if err != nil {
+			return err
+		}
+		if err := update(&cfg); err != nil {
+			return err
+		}
+		return writeConfig(cfg)
+	})
 }
 
 func withConfigLock(fn func() error) error {
@@ -137,23 +156,23 @@ func withConfigLock(fn func() error) error {
 	lockPath := filepath.Join(dir, "config.lock")
 	deadline := time.Now().Add(configLockTimeout)
 
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return fmt.Errorf("open config lock: %w", err)
+	}
+	defer lockFile.Close()
 	for {
-		lockFile, openErr := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if openErr == nil {
-			defer func() {
-				_ = lockFile.Close()
-				_ = os.Remove(lockPath)
-			}()
+		err = unix.Flock(int(lockFile.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+		if err == nil {
+			defer unix.Flock(int(lockFile.Fd()), unix.LOCK_UN)
 			return fn()
 		}
-
-		if !os.IsExist(openErr) {
-			return fmt.Errorf("acquire config lock: %w", openErr)
+		if !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EAGAIN) {
+			return fmt.Errorf("acquire config lock: %w", err)
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("acquire config lock timeout: %s", lockPath)
 		}
-
 		time.Sleep(configLockRetryInterval)
 	}
 }

@@ -599,10 +599,21 @@ func TestScopeSetContainsAllDefaultDoesNotProveConsent(t *testing.T) {
 }
 
 func TestScopeSetContainsAllShortFormStillWorks(t *testing.T) {
-	granted := []string{"Mail.Read", "Mail.Send"}
-	required := []string{"Mail.Read"}
-	if !scopeSetContainsAll(granted, required) {
-		t.Fatal("expected short-form scope match to still work")
+	for _, service := range []string{"Mail", "Calendars", "Contacts", "Tasks", "Files"} {
+		for _, prefix := range []string{"", "https://graph.microsoft.com/"} {
+			if !scopeSetContainsAll([]string{prefix + service + ".ReadWrite"}, []string{service + ".Read"}) {
+				t.Errorf("%s ReadWrite must cover Read", service)
+			}
+		}
+		if scopeSetContainsAll([]string{service + ".Read"}, []string{service + ".ReadWrite"}) {
+			t.Errorf("%s Read must not cover ReadWrite", service)
+		}
+	}
+	if scopeSetContainsAll([]string{"Mail.ReadWrite"}, []string{"Files.Read"}) {
+		t.Fatal("unrelated permissions must not imply access")
+	}
+	if scopeSetContainsAll([]string{"Mail.ReadWrite"}, []string{"Mail.Send"}) {
+		t.Fatal("mail write does not grant send")
 	}
 }
 

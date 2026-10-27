@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 
+	"github.com/fdsouvenir/m365cli/internal/auth"
 	"github.com/fdsouvenir/m365cli/internal/authclient"
 	"github.com/fdsouvenir/m365cli/internal/errfmt"
 	"github.com/fdsouvenir/m365cli/internal/outfmt"
@@ -155,6 +156,7 @@ func newParser(description string) (*kong.Kong, *CLI, error) {
 		"json":             boolString(envMode.JSON),
 		"plain":            boolString(envMode.Plain),
 		"version":          VersionString(),
+		"scope_workloads":  auth.DelegatedScopeWorkloadsHelp(),
 	}
 
 	cli := &CLI{}

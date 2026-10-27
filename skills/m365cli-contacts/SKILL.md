@@ -8,7 +8,7 @@ description: Find and maintain Outlook contacts with m365cli.
 Use a specific `--account NAME` on every API command and `--json` for structured output.
 Read the core m365cli skill for setup or permission changes. Never fall back to a different account.
 
-Match the existing contact before creating a duplicate; pass only intended changes.
+Match the existing contact before creating a duplicate; pass only intended changes. Use contacts-read for reads or contacts-write for read/write access.
 
 Read [the generated command reference](references/commands.md) for syntax. Confirm with
 `m365cli contacts COMMAND --help` when needed. Only perform writes requested by the person.

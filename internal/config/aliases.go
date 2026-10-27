@@ -30,39 +30,25 @@ func SetAccountAlias(alias, email string) error {
 	alias = NormalizeAccountAlias(alias)
 	email = strings.ToLower(strings.TrimSpace(email))
 
-	cfg, err := ReadConfig()
-	if err != nil {
-		return err
-	}
-
-	if cfg.AccountAliases == nil {
-		cfg.AccountAliases = map[string]string{}
-	}
-
-	cfg.AccountAliases[alias] = email
-
-	return WriteConfig(cfg)
+	return UpdateConfig(func(cfg *File) error {
+		if cfg.AccountAliases == nil {
+			cfg.AccountAliases = map[string]string{}
+		}
+		cfg.AccountAliases[alias] = email
+		return nil
+	})
 }
 
 func DeleteAccountAlias(alias string) (bool, error) {
 	alias = NormalizeAccountAlias(alias)
 
-	cfg, err := ReadConfig()
-	if err != nil {
-		return false, err
-	}
-
-	if cfg.AccountAliases == nil {
-		return false, nil
-	}
-
-	if _, ok := cfg.AccountAliases[alias]; !ok {
-		return false, nil
-	}
-
-	delete(cfg.AccountAliases, alias)
-
-	return true, WriteConfig(cfg)
+	deleted := false
+	err := UpdateConfig(func(cfg *File) error {
+		_, deleted = cfg.AccountAliases[alias]
+		delete(cfg.AccountAliases, alias)
+		return nil
+	})
+	return deleted, err
 }
 
 func ListAccountAliases() (map[string]string, error) {

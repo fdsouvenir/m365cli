@@ -1,6 +1,8 @@
 package profile
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/fdsouvenir/m365cli/internal/config"
@@ -51,5 +53,37 @@ func TestValidateRecord(t *testing.T) {
 	record.Audience = "invalid"
 	if err := ValidateRecord(record); err == nil {
 		t.Fatal("expected invalid audience error")
+	}
+}
+
+func TestConcurrentUpsertsPreserveProfiles(t *testing.T) {
+	t.Setenv("M365CLI_CONFIG_DIR", t.TempDir())
+	var wg sync.WaitGroup
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			err := NewStore().Upsert(config.ProfileRecord{Name: fmt.Sprintf("p%d", i), Audience: AudienceConsumer, ClientID: "client"}, true)
+			if err != nil {
+				t.Error(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	records, err := NewStore().List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 40 {
+		t.Fatalf("retained %d of 40 successful profiles", len(records))
+	}
+	active := 0
+	for _, r := range records {
+		if r.Active {
+			active++
+		}
+	}
+	if active != 1 {
+		t.Fatalf("active profiles: %d", active)
 	}
 }
