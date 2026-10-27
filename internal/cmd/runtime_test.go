@@ -84,6 +84,37 @@ func TestValidateCapability(t *testing.T) {
 		},
 	}
 
+	for _, service := range []string{"mail", "calendar", "contacts", "tasks", "onedrive"} {
+		readCap := runtimeCapability(service + ".list")
+		if service == "onedrive" {
+			readCap = capOneDriveLS
+		}
+		writeCap := runtimeCapability(service + ".create")
+		if service == "mail" {
+			writeCap = capMailDraft
+		}
+		if service == "onedrive" {
+			writeCap = capOneDrivePut
+		}
+		writable := config.ProfileRecord{Audience: profile.AudienceConsumer, AuthMode: profile.AuthModeDelegated, DelegatedScopeWorkloads: []string{service + "-write"}}
+		testCases = append(testCases, struct {
+			name         string
+			record       config.ProfileRecord
+			capability   runtimeCapability
+			wantError    bool
+			wantContains string
+		}{service + " write selection covers reads", writable, readCap, false, ""})
+		readonly := writable
+		readonly.DelegatedScopeWorkloads = []string{service + "-read"}
+		testCases = append(testCases, struct {
+			name         string
+			record       config.ProfileRecord
+			capability   runtimeCapability
+			wantError    bool
+			wantContains string
+		}{service + " read selection blocks writes", readonly, writeCap, true, service + "-write"})
+	}
+
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

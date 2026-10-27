@@ -21,6 +21,7 @@ type authManager interface {
 	LoginDelegated(context.Context, auth.DelegatedLoginInput, func(string)) (auth.AccountInfo, error)
 	LoginAppOnly(context.Context, auth.AppOnlyLoginInput) error
 	Logout(string) error
+	ReadGrant(context.Context, config.ProfileRecord) config.GrantRecord
 }
 
 type profileStore interface {
@@ -42,14 +43,15 @@ var newProfileStore = func() profileStore {
 }
 
 type AuthCmd struct {
-	Wizard AuthWizardCmd    `cmd:"" default:"1" hidden:"" help:"Interactive delegated authentication setup"`
-	App    AuthAppWizardCmd `cmd:"" name:"app" help:"Interactive enterprise app-only setup (advanced)"`
-	Login  AuthLoginCmd     `cmd:"" help:"Login and save profile credentials"`
-	Update AuthUpdateCmd    `cmd:"" help:"Review current auth settings and update selected fields"`
-	Logout AuthLogoutCmd    `cmd:"" help:"Log out of a Microsoft account"`
-	Check  AuthCheckCmd     `cmd:"" help:"Verify selected delegated account against Microsoft Graph (read-only)"`
-	Status AuthStatusCmd    `cmd:"" help:"Display active account and login status"`
-	Use    AuthUseCmd       `cmd:"" help:"Switch the active profile"`
+	Workloads AuthWorkloadsCmd `cmd:"" help:"List the delegated workload permission catalog"`
+	Wizard    AuthWizardCmd    `cmd:"" default:"1" hidden:"" help:"Interactive delegated authentication setup"`
+	App       AuthAppWizardCmd `cmd:"" name:"app" help:"Interactive enterprise app-only setup (advanced)"`
+	Login     AuthLoginCmd     `cmd:"" help:"Login and save profile credentials"`
+	Update    AuthUpdateCmd    `cmd:"" help:"Review current auth settings and update selected fields"`
+	Logout    AuthLogoutCmd    `cmd:"" help:"Log out of a Microsoft account"`
+	Check     AuthCheckCmd     `cmd:"" help:"Verify selected delegated account against Microsoft Graph (read-only)"`
+	Status    AuthStatusCmd    `cmd:"" help:"Display active account and login status"`
+	Use       AuthUseCmd       `cmd:"" help:"Switch the active profile"`
 
 	// Hidden aliases for backwards compatibility.
 	Accounts AuthStatusCmd `cmd:"" hidden:"" help:"List saved profiles"`
@@ -64,7 +66,7 @@ type AuthUpdateCmd struct {
 
 type AuthLoginCmd struct {
 	Profile         string `name:"profile" help:"Profile name (e.g. personal, work)"`
-	Audience        string `name:"audience" env:"M365CLI_AUDIENCE" help:"Token audience: consumer (MSA) or enterprise (Entra)"`
+	Audience        string `name:"audience" env:"M365CLI_AUDIENCE" help:"Token audience: auto, consumer (MSA) or enterprise (Entra)"`
 	ClientID        string `name:"client-id" env:"M365CLI_CLIENT_ID" help:"Application (client) ID from operator-provided Entra app registration"`
 	Tenant          string `name:"tenant" help:"Tenant ID or domain (enterprise only)"`
 	Authority       string `name:"authority" hidden:"" help:"Advanced authority override"`
@@ -73,7 +75,7 @@ type AuthLoginCmd struct {
 	ClientSecretEnv string `name:"client-secret-env" help:"Env var containing the client secret"`
 	RefreshToken    string `name:"refresh-token" help:"Pre-existing refresh token for headless delegated login (skips device code flow)"`
 	RefreshTokenEnv string `name:"refresh-token-env" help:"Env var containing a pre-existing refresh token"`
-	ScopeWorkloads  string `name:"scope-workloads" help:"Comma-separated workloads: mail,calendar,contacts,tasks,onedrive,groups"`
+	ScopeWorkloads  string `name:"scope-workloads" help:"Comma-separated workloads: ${scope_workloads}"`
 	AppOnlyUser     string `name:"app-only-user" help:"Default target user for app-only commands (UPN or user ID)"`
 }
 
@@ -166,7 +168,7 @@ func (c *AuthLoginCmd) runInteractive(ctx context.Context) error {
 		audience = profile.AudienceEnterprise
 	} else if audience == "" {
 		var err error
-		audience, err = promptAudience(ctx, profile.AudienceConsumer)
+		audience, err = promptAudience(ctx, "auto")
 		if err != nil {
 			return err
 		}
@@ -275,8 +277,8 @@ func (c *AuthLoginCmd) runNonInteractive(ctx context.Context) error {
 	}
 
 	aud := strings.ToLower(strings.TrimSpace(c.Audience))
-	if aud != profile.AudienceConsumer && aud != profile.AudienceEnterprise {
-		return usagef("invalid --audience %q: must be consumer or enterprise", c.Audience)
+	if aud != "auto" && aud != profile.AudienceConsumer && aud != profile.AudienceEnterprise {
+		return usagef("invalid --audience %q: must be auto, consumer or enterprise", c.Audience)
 	}
 
 	params := authLoginParams{
@@ -324,7 +326,20 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		AuthMode:  mode,
 	}
 
-	if err := profile.ValidateRecord(record); err != nil {
+	validationRecord := record
+	if record.Audience == "auto" {
+		if mode != profile.AuthModeDelegated || record.TenantID != "" {
+			return usage("--audience auto cannot be combined with --tenant or app-only mode; use --audience enterprise")
+		}
+		for _, id := range params.ScopeWorkloads {
+			w, ok := auth.WorkloadByID(id)
+			if ok && !w.Personal {
+				return usage(id + " cannot be combined with --audience auto; use --audience enterprise")
+			}
+		}
+		validationRecord.Audience = profile.AudienceConsumer
+	}
+	if err := profile.ValidateRecord(validationRecord); err != nil {
 		return usage(err.Error())
 	}
 
@@ -366,7 +381,8 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 
 		if record.Audience == profile.AudienceConsumer {
 			for _, w := range workloads {
-				if w == "excel" || w == "groups" {
+				entry, _ := auth.WorkloadByID(w)
+				if !entry.Personal {
 					return usage(w + " requires a business account")
 				}
 			}
@@ -413,6 +429,18 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 			return errors.New("Microsoft sign-in returned no stable account identity; profile was not saved")
 		}
 
+		if record.Audience == "auto" {
+			if strings.TrimSpace(account.TenantID) == "" {
+				return errors.New("Microsoft returned no tenant ID; automatic account-type detection is unavailable and profile was not saved")
+			}
+			if strings.EqualFold(account.TenantID, "9188040d-6c67-4c5b-b112-36a304b66dad") {
+				record.Audience = profile.AudienceConsumer
+				record.Authority = "consumers"
+			} else {
+				record.Audience = profile.AudienceEnterprise
+				record.Authority = account.TenantID
+			}
+		}
 		record.DelegatedScopeWorkloads = workloads
 		record.AccountID = account.AccountID
 		record.Username = account.Username
@@ -420,6 +448,11 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 		if strings.TrimSpace(account.TenantID) != "" {
 			record.TenantID = strings.TrimSpace(account.TenantID)
 		}
+	}
+
+	if record.AuthMode == profile.AuthModeDelegated {
+		grant := manager.ReadGrant(ctx, record)
+		record.Grant = &grant
 	}
 
 	makeActive := false
@@ -438,10 +471,15 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 
 	if outfmt.IsJSON(ctx) {
 		return outfmt.WriteJSON(os.Stdout, map[string]any{
-			"profile":  record.Name,
-			"audience": record.Audience,
-			"mode":     record.AuthMode,
-			"active":   makeActive,
+			"profile":            record.Name,
+			"audience":           record.Audience,
+			"mode":               record.AuthMode,
+			"active":             makeActive,
+			"account_id":         record.AccountID,
+			"username":           record.Username,
+			"tenant_id":          record.TenantID,
+			"selected_workloads": record.DelegatedScopeWorkloads,
+			"grant":              grantReport(record),
 		})
 	}
 
@@ -450,6 +488,9 @@ func runAuthLogin(ctx context.Context, params authLoginParams) error {
 	fmt.Fprintf(os.Stdout, "  Account:  %s\n", displayOrDash(record.Username))
 	fmt.Fprintf(os.Stdout, "  Audience: %s\n", record.Audience)
 	fmt.Fprintf(os.Stdout, "  Mode:     %s\n", record.AuthMode)
+	if record.AuthMode == profile.AuthModeDelegated {
+		printGrant(record)
+	}
 	if len(record.DelegatedScopeWorkloads) > 0 {
 		fmt.Fprintf(os.Stdout, "  Workloads: %s\n", strings.Join(record.DelegatedScopeWorkloads, ", "))
 	}
@@ -505,14 +546,15 @@ func promptValue(ctx context.Context, label string, defaultValue string) (string
 func promptAudience(ctx context.Context, defaultAudience string) (string, error) {
 	value := strings.ToLower(strings.TrimSpace(defaultAudience))
 	switch value {
-	case profile.AudienceConsumer, profile.AudienceEnterprise:
+	case "auto", profile.AudienceConsumer, profile.AudienceEnterprise:
 	default:
-		value = profile.AudienceConsumer
+		value = "auto"
 	}
 
 	selected, err := input.SelectString(ctx, input.SelectStringConfig{
 		Title: "What account type?",
 		Options: []input.SelectStringOption{
+			{Label: "Detect automatically (personal or work)", Value: "auto"},
 			{Label: "Personal Microsoft account (Outlook/Hotmail/Live)", Value: profile.AudienceConsumer},
 			{Label: "Work or school account (Microsoft Entra)", Value: profile.AudienceEnterprise},
 		},
@@ -547,21 +589,36 @@ func displayOrDash(v string) string {
 }
 
 func promptDelegatedWorkloads(ctx context.Context, audience string, defaults []string) ([]string, error) {
-	workloadOptions := []input.SelectStringOption{
-		{Label: "mail", Value: "mail"},
-		{Label: "calendar", Value: "calendar"},
-		{Label: "contacts", Value: "contacts"},
-		{Label: "tasks", Value: "tasks"},
-		{Label: "onedrive", Value: "onedrive"},
+	workloadOptions := []input.SelectStringOption{}
+	for _, w := range auth.DelegatedWorkloads() {
+		if w.CompatibilityBundle || (audience != profile.AudienceEnterprise && !w.Personal) {
+			continue
+		}
+		label := w.Label + " (" + w.Access + ")"
+		if w.Notes != "" {
+			label += " — " + w.Notes
+		}
+		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: label, Value: w.ID})
 	}
-	if audience == profile.AudienceEnterprise {
-		workloadOptions = append(workloadOptions, input.SelectStringOption{Label: "groups (enterprise only)", Value: "groups"}, input.SelectStringOption{Label: "excel (business only)", Value: "excel"})
+	// Expand saved compatibility bundles so updating them does not silently lose access.
+	expanded := []string{}
+	for _, id := range defaults {
+		old, _ := auth.WorkloadByID(id)
+		if !old.CompatibilityBundle {
+			expanded = append(expanded, id)
+			continue
+		}
+		for _, w := range auth.DelegatedWorkloads() {
+			if !w.CompatibilityBundle && w.Service == old.Service && auth.ScopesCover(old.Scopes, w.Scopes) {
+				expanded = append(expanded, w.ID)
+			}
+		}
 	}
 
 	selected, err := input.MultiSelectStrings(ctx, input.MultiSelectStringConfig{
 		Title:       "Workloads to enable",
 		Description: "Space to toggle, enter to confirm.",
-		Defaults:    defaults,
+		Defaults:    expanded,
 		Options:     workloadOptions,
 		Validate: func(values []string) error {
 			if len(values) == 0 {
@@ -689,7 +746,11 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 	})
 
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"profiles": profiles})
+		reports := make([]map[string]any, 0, len(profiles))
+		for _, p := range profiles {
+			reports = append(reports, profileReport(p))
+		}
+		return outfmt.WriteJSON(os.Stdout, map[string]any{"profiles": reports})
 	}
 	if len(profiles) == 0 {
 		fmt.Fprintln(os.Stdout, "No profiles configured. Run `m365cli auth login` to get started.")
@@ -707,6 +768,9 @@ func (c *AuthStatusCmd) Run(ctx context.Context) error {
 		fmt.Fprintf(os.Stdout, "    Account:  %s\n", account)
 		fmt.Fprintf(os.Stdout, "    Audience: %s\n", p.Audience)
 		fmt.Fprintf(os.Stdout, "    Mode:     %s\n", p.AuthMode)
+		if normalizeAuthMode(p.AuthMode) == profile.AuthModeDelegated {
+			printGrant(p)
+		}
 		if len(p.DelegatedScopeWorkloads) > 0 {
 			fmt.Fprintf(os.Stdout, "    Workloads: %s\n", strings.Join(p.DelegatedScopeWorkloads, ", "))
 		}
@@ -749,7 +813,7 @@ func (c *AuthUpdateCmd) Run(ctx context.Context) error {
 
 		switch strings.TrimSpace(choice) {
 		case "audience":
-			audience, promptErr := promptAudience(ctx, updated.Audience)
+			audience, promptErr := promptSavedAudience(ctx, updated.Audience)
 			if promptErr != nil {
 				return promptErr
 			}
@@ -1055,6 +1119,11 @@ func (c *AuthCheckCmd) Run(ctx context.Context) error {
 		return usage("auth check requires a delegated profile")
 	}
 	manager := auth.NewManager()
+	grant := manager.ReadGrant(ctx, selected)
+	selected.Grant = &grant
+	if err := saveCheckedGrant(selected); err != nil {
+		return err
+	}
 	client := graph.NewClient(func(ctx context.Context, scopes []string) (string, error) {
 		return manager.AcquireDelegatedToken(ctx, selected.Name, selected.ClientID, selected.Authority, scopes, selected.AccountID, selected.TenantID)
 	})
@@ -1065,7 +1134,8 @@ func (c *AuthCheckCmd) Run(ctx context.Context) error {
 	if !graphIdentityMatches(selected, fmt.Sprint(identity["id"])) {
 		return errors.New("Microsoft Graph identity does not match selected profile")
 	}
-	return outfmt.WriteJSON(os.Stdout, map[string]any{"profile": selected.Name, "verified": true, "identity": identity})
+
+	return outfmt.WriteJSON(os.Stdout, map[string]any{"profile": selected.Name, "verified": true, "identity": identity, "audience": selected.Audience, "selected_workloads": selected.DelegatedScopeWorkloads, "grant": grantReport(selected)})
 }
 
 // graphIdentityMatches compares Graph's returned identity with the account that
@@ -1094,4 +1164,28 @@ func graphIdentityMatches(selected config.ProfileRecord, graphID string) bool {
 		}
 	}
 	return strings.EqualFold(cid, graphID)
+}
+
+type AuthWorkloadsCmd struct{}
+
+func (c *AuthWorkloadsCmd) Run(ctx context.Context) error {
+	workloads := auth.DelegatedWorkloads()
+	if outfmt.IsJSON(ctx) {
+		return outfmt.WriteJSON(os.Stdout, map[string]any{"workloads": workloads})
+	}
+	for _, w := range workloads {
+		fmt.Fprintf(os.Stdout, "%s: %s [%s] (%s)\n", w.ID, w.Label, w.Access, strings.Join(w.Scopes, ", "))
+		if w.Notes != "" {
+			fmt.Fprintln(os.Stdout, "  "+w.Notes)
+		}
+	}
+	return nil
+}
+
+func promptSavedAudience(ctx context.Context, current string) (string, error) {
+	selected, err := input.SelectString(ctx, input.SelectStringConfig{Title: "What account type?", Default: current, Options: []input.SelectStringOption{{Label: "Personal Microsoft account", Value: profile.AudienceConsumer}, {Label: "Work or school account", Value: profile.AudienceEnterprise}}})
+	if err != nil {
+		return "", wrapPromptInputErr("select audience", err)
+	}
+	return selected, nil
 }

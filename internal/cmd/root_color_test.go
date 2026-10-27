@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/fdsouvenir/m365cli/internal/auth"
 	"io"
 	"os"
 	"strings"
@@ -165,4 +166,16 @@ func captureExecuteOutput(t *testing.T, args []string) (stdout string, stderr st
 	}
 
 	return string(outBytes), string(errBytes), runErr
+}
+
+func TestLoginHelpListsEveryWorkload(t *testing.T) {
+	stdout, _, err := captureExecuteOutput(t, []string{"auth", "login", "--help"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, workload := range auth.DelegatedScopeWorkloadNames() {
+		if !strings.Contains(stdout, workload) {
+			t.Errorf("missing workload %q in login help", workload)
+		}
+	}
 }

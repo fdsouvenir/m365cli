@@ -33,15 +33,21 @@ Choose only the requested workloads, combined in one login:
 | Send email | `mail-send` |
 | Read and send email | `mail-read,mail-send` (legacy bundle: `mail`) |
 | Create drafts | `mail-write` |
-| Calendar | `calendar` (read/write) |
-| Contacts | `contacts` (read/write) |
-| Microsoft To Do | `tasks` (read/write) |
-| OneDrive | `onedrive` (read/write) |
+| Read / change calendars | `calendar-read` / `calendar-write` |
+| Read / change contacts | `contacts-read` / `contacts-write` |
+| Read / change Microsoft To Do | `tasks-read` / `tasks-write` |
+| Read / change OneDrive files | `onedrive-read` / `onedrive-write` |
 | Microsoft 365 Groups | `groups` (business only; requires tenant-administrator consent) |
-| Excel workbook operations | `excel` (business storage, delegated sign-in only) |
+| Excel workbook operations | `excel` (business storage, delegated sign-in only; read/write access to all OneDrive files, not just workbooks) |
 
-Calendar, contacts, tasks and OneDrive bundles currently include write permissions.
-Explain that if the user requested read-only; do not describe them as read-only.
+Use `auth workloads --json` for the full catalog and exact eligibility, permissions
+and notes. Excel cannot be read-only: workbook reads also require `Files.ReadWrite`.
+Existing compatibility workload IDs remain accepted with their original scopes.
+The recorded selection is the local delegated command limit; wider old Microsoft
+grants do not authorize extra workloads. `auth login`, `auth check` and `auth status`
+report the grant and both selection/grant differences. Status is the last saved
+check, not a fresh read. Unknown grants stay unknown; never infer them from the last
+token refresh. Signing in with fewer workloads does not revoke Microsoft consent.
 Adding workloads requires a new consent flow with the union of requested existing
 and new workloads. Local workload edits do not revoke existing provider grants.
 
@@ -54,11 +60,13 @@ missing app registration settings.
 Example for “set up Outlook so you can read and send my email”:
 
 ```sh
-m365cli auth login --profile personal --audience consumer --scope-workloads mail-read,mail-send --no-input --json
+m365cli auth login --profile personal --audience auto --scope-workloads mail-read,mail-send --no-input --json
 ```
 
 The client ID comes from the operator environment or `--client-id`. Use
-`--audience enterprise` for work/school and `--tenant` when configured. Linux/macOS
+`--audience auto` for automatic personal/work detection (also the interactive
+default). Use `--audience enterprise` for `excel`, `groups` or `--tenant`; these cannot
+be combined with auto. The normal detected authority is saved for later refresh. Linux/macOS
 use device-code sign-in: deliver the actual Microsoft verification URL and
 short-lived code privately to the requesting person. The command waits for their
 consent. Do not retry a pending login by

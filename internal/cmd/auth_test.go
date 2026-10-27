@@ -408,8 +408,12 @@ func TestLoginSecondAccountPreservesDefault(t *testing.T) {
 		return &fakeAuthManager{delegatedAccount: auth.AccountInfo{AccountID: "work-id", TenantID: "tenant"}}
 	}
 	defer func() { newAuthManager = previous }()
-	if err := runAuthLogin(context.Background(), authLoginParams{Profile: "work", Audience: "enterprise", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true}); err != nil {
+	if err := runAuthLogin(context.Background(), authLoginParams{Profile: "work", Audience: "auto", ClientID: "client", Mode: "delegated", ScopeWorkloads: []string{"mail"}, RequireDelegatedScopeWorkloads: true}); err != nil {
 		t.Fatal(err)
+	}
+	detected, ok, err := store.Get("work")
+	if err != nil || !ok || detected.Audience != "enterprise" || detected.Authority != "tenant" {
+		t.Fatalf("auto work detection failed: %+v %v", detected, err)
 	}
 	active, err := store.Active()
 	if err != nil {
@@ -495,4 +499,8 @@ func TestGraphIdentityMatchesPersonalAndWorkBoundaries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (m *fakeAuthManager) ReadGrant(context.Context, config.ProfileRecord) config.GrantRecord {
+	return config.GrantRecord{Status: "unknown", Reason: "Test grant not checked."}
 }

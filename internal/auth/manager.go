@@ -361,6 +361,11 @@ func (m *Manager) AcquireDelegatedToken(
 	expectedAccountID string,
 	expectedTenantID string,
 ) (string, error) {
+	unlock, err := lockProfile(ctx, profileName)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	cache, err := m.loadToken(profileName)
 	if err != nil {
 		return "", err
