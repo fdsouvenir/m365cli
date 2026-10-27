@@ -105,3 +105,7 @@ authorize sending or writing anything beyond the person's request.
 
 Falcon Link integration and real-account/platform qualification are separate from
 CLI availability; do not claim its hosted sign-in handoff is implemented.
+
+## Optional managed automation
+
+For an explicitly managed process, `M365CLI_MANAGED_AUTOMATION=true` requires both `M365CLI_ENABLE_COMMANDS` (top-level services) and `M365CLI_ENABLE_ACTIONS` (dot-separated command paths). For read-only Outlook automation, use commands `mail` and actions `mail.folders,mail.list,mail.get`. Add a write action only for the person's requested operation. These limits complement, never replace, account selection, selected workloads, verified grants and delete confirmation. Normal CLI use is unchanged without configured allowlists; this mode is not inferred from CI or TTY. `mail.reply` covers send/reply-all/draft variants, still subject to their distinct workloads.

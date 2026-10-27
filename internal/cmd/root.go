@@ -17,14 +17,16 @@ import (
 )
 
 type RootFlags struct {
-	Profile        string `name:"use-profile" aliases:"account" group:"inherited-flags" help:"Profile name override for API commands" default:"${profile}"`
-	Client         string `group:"inherited-flags" help:"Logical client registration name" default:"${client}"`
-	EnableCommands string `group:"inherited-flags" help:"Comma-separated list of enabled top-level commands (restricts CLI)" default:"${enabled_commands}"`
-	JSON           bool   `group:"inherited-flags" help:"Output JSON to stdout (best for scripting)" default:"${json}"`
-	Plain          bool   `group:"inherited-flags" help:"Output stable, parseable text to stdout (TSV)" default:"${plain}"`
-	Force          bool   `group:"inherited-flags" help:"Skip confirmations for destructive commands"`
-	NoInput        bool   `group:"inherited-flags" help:"Never prompt; fail instead (useful for CI)"`
-	Verbose        bool   `group:"inherited-flags" help:"Enable verbose logging"`
+	Profile           string `name:"use-profile" aliases:"account" group:"inherited-flags" help:"Profile name override for API commands" default:"${profile}"`
+	Client            string `group:"inherited-flags" help:"Logical client registration name" default:"${client}"`
+	EnableCommands    string `group:"inherited-flags" help:"Comma-separated list of enabled top-level commands (restricts CLI)" default:"${enabled_commands}"`
+	EnableActions     string `group:"inherited-flags" help:"Comma-separated allowed command actions (for example mail.list,mail.reply)" default:"${enabled_actions}"`
+	ManagedAutomation bool   `name:"managed-automation" group:"inherited-flags" help:"Require non-empty command and action allowlists (also M365CLI_MANAGED_AUTOMATION=true)"`
+	JSON              bool   `group:"inherited-flags" help:"Output JSON to stdout (best for scripting)" default:"${json}"`
+	Plain             bool   `group:"inherited-flags" help:"Output stable, parseable text to stdout (TSV)" default:"${plain}"`
+	Force             bool   `group:"inherited-flags" help:"Skip confirmations for destructive commands"`
+	NoInput           bool   `group:"inherited-flags" help:"Never prompt; fail instead (useful for CI)"`
+	Verbose           bool   `group:"inherited-flags" help:"Enable verbose logging"`
 }
 
 type CLI struct {
@@ -81,7 +83,16 @@ func Execute(args []string) (err error) {
 		return parsedErr
 	}
 
-	if err = enforceEnabledCommands(kctx, cli.EnableCommands); err != nil {
+	managedMode, err := managedAutomationMode(cli.ManagedAutomation)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, errfmt.Format(err))
+		return err
+	}
+	if err = enforceEnabledCommands(kctx, cli.EnableCommands, managedMode); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, errfmt.Format(err))
+		return err
+	}
+	if err = enforceEnabledActions(kctx, cli.EnableActions, managedMode); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, errfmt.Format(err))
 		return err
 	}
@@ -153,6 +164,7 @@ func newParser(description string) (*kong.Kong, *CLI, error) {
 		"profile":          envOr("M365CLI_PROFILE", ""),
 		"client":           envOr("M365CLI_CLIENT", ""),
 		"enabled_commands": envOr("M365CLI_ENABLE_COMMANDS", ""),
+		"enabled_actions":  envOr("M365CLI_ENABLE_ACTIONS", ""),
 		"json":             boolString(envMode.JSON),
 		"plain":            boolString(envMode.Plain),
 		"version":          VersionString(),

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add opt-in per-action allowlists and explicitly managed automation that refuses execution unless both service and action lists are configured. Ordinary use and OAuth permissions are unchanged.
+
 - Add calendar create/update `--show-as` availability without changing existing defaults or permissions.
 
 - Validate move/archive/delete completion status and message ID; preserve confirmed-write status on response failures and never replay uncertain moves.
