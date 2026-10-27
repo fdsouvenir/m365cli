@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Validate move/archive/delete completion status and message ID; preserve confirmed-write status on response failures and never replay uncertain moves.
+- Add rich message-list metadata, consistent immutable IDs, hidden-folder opt-in, explicit page coverage and bounded mutation summaries.
+
+- Add top-level `mail folders`, folder-aware listing and explicit newest-first ordering; keep the mailbox-wide default. Inbox triage now explicitly selects inbox (#14).
+- Add Microsoft's built-in threaded reply/reply-all, saved reply drafts and forward actions. Sending needs mail-send; saving reply drafts needs mail-write (#24).
+- Add mail-write mark read/unread, move/archive and restorable delete. All support dry-run. Delete keeps the existing confirmation/force rule and moves to Deleted Items, never permanent deletion. Moves into Deleted Items (including its actual folder ID) follow the same delete rule; other moves, archive and read-status updates need no force (#24).
+- Update the inbox-triage workflow, explain quoted new messages versus threaded replies, and regenerate mail references. Real Microsoft writes remain unverified.
+
 ## 2.1.0 - 2026-10-27
 
 - Store macOS credentials through the native Security framework, never token-bearing subprocess arguments (#5). Existing Keychain service/account names and stored values remain readable without sign-in.

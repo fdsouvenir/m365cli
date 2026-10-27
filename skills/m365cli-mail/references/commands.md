@@ -27,7 +27,10 @@ INHERITED FLAGS
 
 COMMANDS
   list [flags]
-    List messages
+    List messages newest first (whole mailbox unless --folder is set)
+
+  folders [flags]
+    List top-level mail folders and their IDs
 
   get <id> [flags]
     Get message by ID
@@ -37,6 +40,27 @@ COMMANDS
 
   draft --subject=STRING [flags]
     Create a draft message
+
+  reply <id> [flags]
+    Send or draft a threaded reply
+
+  forward --to=TO,... <id> [flags]
+    Forward a message using Microsoft's forward action
+
+  mark-read <id> [flags]
+    Mark a message read
+
+  mark-unread <id> [flags]
+    Mark a message unread
+
+  move --folder=STRING <id> [flags]
+    Move a message to a folder
+
+  archive <id> [flags]
+    Move a message to Archive
+
+  delete <id> [flags]
+    Move a message to Deleted Items (restorable)
 
 LEARN MORE
   Use "m365cli mail --help" for more information about this command.
@@ -49,15 +73,17 @@ LEARN MORE
 USAGE
   m365cli mail (email) list [flags]
 
-List messages
+List messages newest first (whole mailbox unless --folder is set)
 
 FLAGS
-  -h, --help            Show context-sensitive help.
+  -h, --help             Show context-sensitive help.
 
-      --max=20          Maximum messages
-      --query=STRING    Search query text
-      --page=STRING     Resume from next page token
-      --user=STRING     App-only target user override (UPN or user ID)
+      --folder=STRING    Folder: inbox, sent, drafts, archive, deleted, junk or
+                         a folder ID (default: whole mailbox)
+      --max=20           Maximum messages
+      --query=STRING     Search query text
+      --page=STRING      Resume from next page token
+      --user=STRING      App-only target user override (UPN or user ID)
 
 INHERITED FLAGS
   --use-profile=""        Profile name override for API commands
@@ -77,6 +103,39 @@ EXAMPLES
 
 LEARN MORE
   Use "m365cli mail list --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail folders`
+
+```text
+USAGE
+  m365cli mail (email) folders [flags]
+
+List top-level mail folders and their IDs
+
+FLAGS
+  -h, --help              Show context-sensitive help.
+
+      --include-hidden    Include hidden folders in the initial request
+      --max=INT           Page-size target (Microsoft default when omitted)
+      --page=STRING       Resume from next page token
+      --user=STRING       App-only target user override (UPN or user ID)
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail folders --help" for more information about this command.
   Read the README at https://github.com/fdsouvenir/m365cli#readme
 ```
 
@@ -127,7 +186,8 @@ FLAGS
       --to=TO,...         Recipient email (repeat or comma-separate)
       --subject=STRING    Email subject
       --body=STRING       Plain text body
-      --quote=STRING      Message ID to quote in reply body
+      --quote=STRING      Message ID to quote in a new, unthreaded message (use
+                          mail reply for threaded replies)
       --user=STRING       App-only target user override (UPN or user ID)
       --dry-run           Preview send without sending the message
 
@@ -182,5 +242,251 @@ INHERITED FLAGS
 
 LEARN MORE
   Use "m365cli mail draft --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail reply`
+
+```text
+USAGE
+  m365cli mail (email) reply <id> [flags]
+
+Send or draft a threaded reply
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+      --body=STRING    Reply text
+      --reply-all      Reply to all original recipients
+      --draft          Save a threaded reply draft instead of sending (requires
+                       mail-write)
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail reply --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail forward`
+
+```text
+USAGE
+  m365cli mail (email) forward --to=TO,... <id> [flags]
+
+Forward a message using Microsoft's forward action
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+      --to=TO,...      Recipient email (repeat or comma-separate)
+      --body=STRING    Forward comment
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail forward --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail mark-read`
+
+```text
+USAGE
+  m365cli mail (email) mark-read <id> [flags]
+
+Mark a message read
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail mark-read --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail mark-unread`
+
+```text
+USAGE
+  m365cli mail (email) mark-unread <id> [flags]
+
+Mark a message unread
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail mark-unread --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail move`
+
+```text
+USAGE
+  m365cli mail (email) move --folder=STRING <id> [flags]
+
+Move a message to a folder
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help             Show context-sensitive help.
+
+      --user=STRING      App-only target user override (UPN or user ID)
+      --dry-run          Preview without changing or sending mail
+      --folder=STRING    Destination: inbox, sent, drafts, archive, deleted,
+                         junk or a folder ID
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail move --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail archive`
+
+```text
+USAGE
+  m365cli mail (email) archive <id> [flags]
+
+Move a message to Archive
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail archive --help" for more information about this command.
+  Read the README at https://github.com/fdsouvenir/m365cli#readme
+```
+
+## `m365cli mail delete`
+
+```text
+USAGE
+  m365cli mail (email) delete <id> [flags]
+
+Move a message to Deleted Items (restorable)
+
+ARGUMENTS
+  <id>    Message ID
+
+FLAGS
+  -h, --help           Show context-sensitive help.
+
+      --user=STRING    App-only target user override (UPN or user ID)
+      --dry-run        Preview without changing or sending mail
+
+INHERITED FLAGS
+  --use-profile=""        Profile name override for API commands
+  --client=""             Logical client registration name
+  --enable-commands=""    Comma-separated list of enabled top-level commands
+                          (restricts CLI)
+  --json                  Output JSON to stdout (best for scripting)
+  --plain                 Output stable, parseable text to stdout (TSV)
+  --force                 Skip confirmations for destructive commands
+  --no-input              Never prompt; fail instead (useful for CI)
+  --verbose               Enable verbose logging
+  --version               Print version and exit
+
+LEARN MORE
+  Use "m365cli mail delete --help" for more information about this command.
   Read the README at https://github.com/fdsouvenir/m365cli#readme
 ```

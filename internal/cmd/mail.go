@@ -11,17 +11,26 @@ import (
 )
 
 type MailCmd struct {
-	List  MailListCmd  `cmd:"" help:"List messages"`
-	Get   MailGetCmd   `cmd:"" help:"Get message by ID"`
-	Send  MailSendCmd  `cmd:"" help:"Send a new message"`
-	Draft MailDraftCmd `cmd:"" help:"Create a draft message"`
+	List       MailListCmd       `cmd:"" help:"List messages newest first (whole mailbox unless --folder is set)"`
+	Folders    MailFoldersCmd    `cmd:"" help:"List top-level mail folders and their IDs"`
+	Get        MailGetCmd        `cmd:"" help:"Get message by ID"`
+	Send       MailSendCmd       `cmd:"" help:"Send a new message"`
+	Draft      MailDraftCmd      `cmd:"" help:"Create a draft message"`
+	Reply      MailReplyCmd      `cmd:"" help:"Send or draft a threaded reply"`
+	Forward    MailForwardCmd    `cmd:"" help:"Forward a message using Microsoft's forward action"`
+	MarkRead   MailMarkReadCmd   `cmd:"" name:"mark-read" help:"Mark a message read"`
+	MarkUnread MailMarkUnreadCmd `cmd:"" name:"mark-unread" help:"Mark a message unread"`
+	Move       MailMoveCmd       `cmd:"" help:"Move a message to a folder"`
+	Archive    MailArchiveCmd    `cmd:"" help:"Move a message to Archive"`
+	Delete     MailDeleteCmd     `cmd:"" help:"Move a message to Deleted Items (restorable)"`
 }
 
 type MailListCmd struct {
-	Max   int    `name:"max" default:"20" help:"Maximum messages"`
-	Query string `name:"query" help:"Search query text"`
-	Page  string `name:"page" aliases:"next-token" help:"Resume from next page token"`
-	User  string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	Folder string `name:"folder" help:"Folder: inbox, sent, drafts, archive, deleted, junk or a folder ID (default: whole mailbox)"`
+	Max    int    `name:"max" default:"20" help:"Maximum messages"`
+	Query  string `name:"query" help:"Search query text"`
+	Page   string `name:"page" aliases:"next-token" help:"Resume from next page token"`
+	User   string `name:"user" help:"App-only target user override (UPN or user ID)"`
 }
 
 func (c *MailListCmd) Run(ctx context.Context) error {
@@ -39,13 +48,13 @@ func (c *MailListCmd) Run(ctx context.Context) error {
 	}
 
 	svc := mail.New(rt.Graph, targetUser)
-	items, next, err := svc.List(ctx, c.Max, c.Query, page)
+	items, next, err := svc.List(ctx, c.Max, c.Query, page, c.Folder)
 	if err != nil {
 		return err
 	}
 
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"messages": items, "next": next})
+		return outfmt.WriteJSON(os.Stdout, mailPagePayload("messages", items, next))
 	}
 
 	printItemTable(ctx, items, []string{"receivedDateTime", "subject", "id", "isRead"})
@@ -86,7 +95,7 @@ type MailSendCmd struct {
 	To      []string `name:"to" required:"" help:"Recipient email (repeat or comma-separate)"`
 	Subject string   `name:"subject" required:"" help:"Email subject"`
 	Body    string   `name:"body" help:"Plain text body"`
-	Quote   string   `name:"quote" help:"Message ID to quote in reply body"`
+	Quote   string   `name:"quote" help:"Message ID to quote in a new, unthreaded message (use mail reply for threaded replies)"`
 	User    string   `name:"user" help:"App-only target user override (UPN or user ID)"`
 	DryRun  bool     `name:"dry-run" help:"Preview send without sending the message"`
 }
@@ -120,7 +129,7 @@ func (c *MailSendCmd) Run(ctx context.Context) error {
 			})
 		}
 		if strings.TrimSpace(c.Quote) != "" {
-			fmt.Fprintf(os.Stdout, "Dry run: would send quoted reply to %s with subject %q (quote id: %s)\n", strings.Join(recipients, ", "), c.Subject, strings.TrimSpace(c.Quote))
+			fmt.Fprintf(os.Stdout, "Dry run: would send a new message quoting mail to %s with subject %q (quote id: %s)\n", strings.Join(recipients, ", "), c.Subject, strings.TrimSpace(c.Quote))
 			return nil
 		}
 		fmt.Fprintf(os.Stdout, "Dry run: would send message to %s with subject %q\n", strings.Join(recipients, ", "), c.Subject)
