@@ -18,6 +18,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -90,6 +94,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -127,6 +135,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -160,6 +172,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -196,6 +212,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -233,6 +253,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -271,6 +295,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -307,6 +335,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -341,6 +373,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -375,6 +411,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -411,6 +451,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -445,6 +489,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands
@@ -479,6 +527,10 @@ INHERITED FLAGS
   --client=""             Logical client registration name
   --enable-commands=""    Comma-separated list of enabled top-level commands
                           (restricts CLI)
+  --enable-actions=""     Comma-separated allowed command actions (for example
+                          mail.list,mail.reply)
+  --managed-automation    Require non-empty command and action allowlists (also
+                          M365CLI_MANAGED_AUTOMATION=true)
   --json                  Output JSON to stdout (best for scripting)
   --plain                 Output stable, parseable text to stdout (TSV)
   --force                 Skip confirmations for destructive commands

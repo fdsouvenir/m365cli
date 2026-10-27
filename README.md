@@ -206,6 +206,21 @@ A preview does not authorize a write. Server-error responses to writes are not
 automatically retried: check the remote result before repeating an uncertain send,
 create or append.
 
+### Optional automation action limits
+
+Normal CLI use is unchanged when no allowlists are configured. `--enable-actions` (or `M365CLI_ENABLE_ACTIONS`) limits named operations, for example `mail.list,mail.get`; `--enable-commands` still limits top-level services. Nested names use dots, for example `excel.range.get`. The `email` alias uses `mail` action names. `mail.reply` includes reply-all and saved-draft variants; the selected workloads still decide whether sending or saving is allowed.
+
+For a managed process, explicitly set `M365CLI_MANAGED_AUTOMATION=true` or `--managed-automation`. Both command and action allowlists must then be non-empty; a missing, whitespace-only or comma-only list refuses execution. Ordinary interactive use does not infer this mode from TTY or CI. `all` or `*` explicitly allows every command/action at that layer.
+
+```sh
+M365CLI_MANAGED_AUTOMATION=true \
+M365CLI_ENABLE_COMMANDS=mail \
+M365CLI_ENABLE_ACTIONS=mail.list,mail.get \
+m365cli --account personal mail list --folder inbox --json
+```
+
+These are local execution controls, not changes to Microsoft consent or an operating-system security boundary. They never bypass the selected account, workload/grant checks or delete confirmation.
+
 ### Outlook mail
 
 `mail folders --json` lists top-level folders with IDs, parent IDs, child counts
