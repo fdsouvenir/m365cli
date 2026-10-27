@@ -200,6 +200,7 @@ func TestMailPreviewsStayLocalAndDeleteRequiresConfirmation(t *testing.T) {
 	reads, writes := 0, 0
 	http.DefaultClient = &http.Client{Transport: contractTransport(func(r *http.Request) (*http.Response, error) {
 		payload := ""
+		status := 200
 		switch {
 		case r.Method == "GET" && r.URL.Path == "/v1.0/me/mailFolders/deleteditems":
 			reads++
@@ -209,17 +210,21 @@ func TestMailPreviewsStayLocalAndDeleteRequiresConfirmation(t *testing.T) {
 			payload = `{"id":"DeletedFolderID"}`
 		case r.Method == "POST" && r.URL.Path == "/v1.0/me/messages/message-id/move":
 			writes++
-			payload = `{"id":"moved-id"}`
+			status = 201
+			payload = `{"id":"moved-id","body":{"content":"sensitive-response-body"},"toRecipients":["unneeded"]}`
 		default:
 			return nil, fmt.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(payload))}, nil
+		return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(payload))}, nil
 	})}
 	_, _, err := captureExecuteOutput(t, []string{"mail", "move", "message-id", "--folder", "DeletedFolderID", "--no-input"})
 	if err == nil || !strings.Contains(err.Error(), "--force") || reads != 1 || writes != 0 {
 		t.Fatalf("opaque Deleted Items ID bypassed confirmation: reads=%d writes=%d err=%v", reads, writes, err)
 	}
-	_, _, err = captureExecuteOutput(t, []string{"mail", "move", "message-id", "--folder", "OrdinaryFolderID", "--no-input"})
+	stdout, _, err := captureExecuteOutput(t, []string{"mail", "move", "message-id", "--folder", "OrdinaryFolderID", "--no-input", "--json"})
+	if strings.Contains(stdout, "sensitive-response-body") || strings.Contains(stdout, "toRecipients") || !strings.Contains(stdout, "moved-id") {
+		t.Errorf("move output must retain ID but omit unnecessary message content: %s", stdout)
+	}
 	if err != nil || reads != 2 || writes != 1 {
 		t.Fatalf("ordinary folder-ID move must not require force: reads=%d writes=%d err=%v", reads, writes, err)
 	}

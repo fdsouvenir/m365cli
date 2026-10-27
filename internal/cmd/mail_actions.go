@@ -11,9 +11,10 @@ import (
 )
 
 type MailFoldersCmd struct {
-	Max  int    `name:"max" help:"Page-size target (Microsoft default when omitted)"`
-	Page string `name:"page" aliases:"next-token" help:"Resume from next page token"`
-	User string `name:"user" help:"App-only target user override (UPN or user ID)"`
+	IncludeHidden bool   `name:"include-hidden" help:"Include hidden folders in the initial request"`
+	Max           int    `name:"max" help:"Page-size target (Microsoft default when omitted)"`
+	Page          string `name:"page" aliases:"next-token" help:"Resume from next page token"`
+	User          string `name:"user" help:"App-only target user override (UPN or user ID)"`
 }
 
 func (c *MailFoldersCmd) Run(ctx context.Context) error {
@@ -29,12 +30,12 @@ func (c *MailFoldersCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	folders, next, err := mail.New(rt.Graph, user).Folders(ctx, c.Max, page)
+	folders, next, err := mail.New(rt.Graph, user).Folders(ctx, c.Max, page, c.IncludeHidden)
 	if err != nil {
 		return err
 	}
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"folders": folders, "next": next})
+		return outfmt.WriteJSON(os.Stdout, mailPagePayload("folders", folders, next))
 	}
 	printItemTable(ctx, folders, []string{"displayName", "id", "unreadItemCount", "totalItemCount", "childFolderCount"})
 	printNextPageHint(uiFromContext(ctx), next)
@@ -84,7 +85,7 @@ func (c *MailReplyCmd) Run(ctx context.Context) error {
 	}
 	if c.Draft {
 		if outfmt.IsJSON(ctx) {
-			return outfmt.WriteJSON(os.Stdout, result)
+			return outfmt.WriteJSON(os.Stdout, mailMutationSummary(result))
 		}
 		fmt.Fprintf(os.Stdout, "Reply draft created (id: %s)\n", stringValue(result["id"]))
 		return nil
@@ -225,8 +226,39 @@ func runMailRelocate(ctx context.Context, message MailMessageFlags, folder, acti
 		return err
 	}
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"action": action, "source_id": message.ID, "folder": destination, "message": result})
+		return outfmt.WriteJSON(os.Stdout, map[string]any{"action": action, "source_id": message.ID, "folder": destination, "message": mailMutationSummary(result)})
 	}
 	fmt.Fprintf(os.Stdout, "Moved message %s to %s (new id: %s)\n", message.ID, destination, stringValue(result["id"]))
 	return nil
+}
+
+func mailMutationSummary(message map[string]any) map[string]any {
+	keys := []string{
+		"id",
+		"parentFolderId",
+		"subject",
+		"isRead",
+		"receivedDateTime",
+		"sentDateTime",
+		"hasAttachments",
+		"webLink",
+	}
+
+	summary := make(map[string]any, len(keys))
+	for _, key := range keys {
+		if value, ok := message[key]; ok {
+			summary[key] = value
+		}
+	}
+	return summary
+}
+
+func mailPagePayload(itemKey string, items []map[string]any, next string) map[string]any {
+	hasMore := strings.TrimSpace(next) != ""
+	return map[string]any{
+		itemKey:    items,
+		"next":     next,
+		"hasMore":  hasMore,
+		"complete": !hasMore,
+	}
 }

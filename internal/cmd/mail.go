@@ -54,7 +54,7 @@ func (c *MailListCmd) Run(ctx context.Context) error {
 	}
 
 	if outfmt.IsJSON(ctx) {
-		return outfmt.WriteJSON(os.Stdout, map[string]any{"messages": items, "next": next})
+		return outfmt.WriteJSON(os.Stdout, mailPagePayload("messages", items, next))
 	}
 
 	printItemTable(ctx, items, []string{"receivedDateTime", "subject", "id", "isRead"})

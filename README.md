@@ -198,7 +198,7 @@ m365cli --account work groups list --json
 ```
 
 `--json` provides structured output; `--plain` provides TSV for supported tables.
-Use `--help` for exact service flags. `--dry-run` is available for mail writes (including the later-release Outlook commands below), calendar create/update/delete,
+Use `--help` for exact service flags. `--dry-run` is available for mail writes (including the Outlook commands below), calendar create/update/delete,
 OneDrive put/mkdir/rm and every Excel write. Contacts and To Do writes do not
 support it. Destructive operations require confirmation or explicit `--force` in
 noninteractive execution.
@@ -206,7 +206,7 @@ A preview does not authorize a write. Server-error responses to writes are not
 automatically retried: check the remote result before repeating an uncertain send,
 create or append.
 
-### Outlook basics (later-release draft; not part of 2.1.0)
+### Outlook mail
 
 `mail folders --json` lists top-level folders with IDs, parent IDs, child counts
 and unread/total counts. It supports `--max` and `--page` like other lists.
@@ -228,6 +228,10 @@ m365cli --account personal mail move MESSAGE_ID --folder FOLDER_ID --dry-run
 m365cli --account personal mail archive MESSAGE_ID --dry-run
 m365cli --account personal mail delete MESSAGE_ID --dry-run
 ```
+
+Mail list JSON also reports `hasMore` and `complete` for the requested page sequence (not recursive folders). Continue using the opaque `next` URL until complete; never infer completion from a short page. `mail folders --include-hidden` opts into hidden folders. Lists include conversation, folder, recipient and status metadata without requesting bodies or attachments. Reads and moved/reply-draft results request immutable message IDs.
+
+Move/archive/delete require Graph's HTTP 201 response and resulting message ID. A confirmed move with an unusable response is reported separately from an indeterminate transport/server outcome; neither is automatically replayed. Inspect mailbox state before deciding to retry an indeterminate operation. Mutation JSON includes operational message metadata, not full message bodies or recipient lists.
 
 Sending replies/reply-all and forwards uses `mail-send`. Saving a threaded reply
 with `mail reply --draft` uses `mail-write`, not `mail-send`. These use Microsoft's

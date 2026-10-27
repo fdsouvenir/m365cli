@@ -115,11 +115,12 @@ USAGE
 List top-level mail folders and their IDs
 
 FLAGS
-  -h, --help           Show context-sensitive help.
+  -h, --help              Show context-sensitive help.
 
-      --max=INT        Page-size target (Microsoft default when omitted)
-      --page=STRING    Resume from next page token
-      --user=STRING    App-only target user override (UPN or user ID)
+      --include-hidden    Include hidden folders in the initial request
+      --max=INT           Page-size target (Microsoft default when omitted)
+      --page=STRING       Resume from next page token
+      --user=STRING       App-only target user override (UPN or user ID)
 
 INHERITED FLAGS
   --use-profile=""        Profile name override for API commands

@@ -90,6 +90,11 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests++
+				if (r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/mailFolders/deleteditems")) || strings.HasSuffix(r.URL.Path, "/move") {
+					if r.Header.Get("Prefer") != `IdType="ImmutableId"` {
+						t.Error("message IDs must use a consistent immutable format")
+					}
+				}
 				if expectedPath != "" {
 					if r.Method != expectedMethod || r.URL.Path != expectedPath {
 						t.Errorf("wrong action: %s %s; want %s %s", r.Method, r.URL.Path, expectedMethod, expectedPath)
@@ -104,12 +109,18 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 						}
 					}
 					if r.Method == http.MethodGet {
+						if strings.HasSuffix(r.URL.Path, "/mailFolders") && r.URL.Query().Get("includeHiddenFolders") != "true" {
+							t.Error("hidden folder opt-in lost")
+						}
 						if strings.HasSuffix(r.URL.Path, "/mailFolders/deleteditems") {
 							fmt.Fprint(w, `{"id":"deleted-id"}`)
 							return
 						}
 						fmt.Fprint(w, `{"value":[{"id":"folder-id"}]}`)
 					} else {
+						if strings.HasSuffix(r.URL.Path, "/move") {
+							w.WriteHeader(http.StatusCreated)
+						}
 						fmt.Fprint(w, `{"id":"result-id"}`)
 					}
 					return
@@ -117,6 +128,9 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 
 				switch {
 				case r.Method == http.MethodGet && r.URL.Path == tc.wantListPath:
+					if selectFields := r.URL.Query().Get("$select"); !strings.Contains(selectFields, "conversationId") || !strings.Contains(selectFields, "parentFolderId") || strings.Contains(selectFields, "body") {
+						t.Errorf("list must request useful metadata without body: %s", selectFields)
+					}
 					if got := r.URL.Query().Get("$orderby"); got != "receivedDateTime desc" {
 						t.Errorf("newest-first ordering missing: %q", got)
 					}
@@ -202,7 +216,7 @@ func TestEndpointsRouteByAuthMode(t *testing.T) {
 			expectedMethod = "GET"
 			mailbox := strings.TrimSuffix(tc.wantListPath, "/messages")
 			expectedPath = mailbox + "/mailFolders"
-			folders, _, err := svc.Folders(ctx, 20, "")
+			folders, _, err := svc.Folders(ctx, 20, "", true)
 			if err != nil || len(folders) != 1 {
 				t.Fatalf("folder discovery: %v %v", folders, err)
 			}
