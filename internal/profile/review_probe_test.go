@@ -1,0 +1,3 @@
+package profile
+import("testing";"sync";"fmt";"github.com/fdsouvenir/m365cli/internal/config")
+func TestReviewConcurrentProfiles(t *testing.T){t.Setenv("XDG_CONFIG_HOME",t.TempDir());var wg sync.WaitGroup; errs:=make(chan error,40);for i:=0;i<40;i++{wg.Add(1);go func(i int){defer wg.Done();errs<-NewStore().Upsert(config.ProfileRecord{Name:fmt.Sprintf("p%d",i),Audience:"consumer",AuthMode:"delegated",ClientID:"client"},false)}(i)};wg.Wait();close(errs);for err:=range errs{if err!=nil{t.Fatal(err)}};cfg,err:=config.ReadConfig();if err!=nil{t.Fatal(err)};if len(cfg.Profiles)!=40{t.Fatalf("REPRODUCED: 40 successful profile saves retained only %d",len(cfg.Profiles))}}

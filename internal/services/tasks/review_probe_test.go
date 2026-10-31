@@ -1,0 +1,3 @@
+package tasks
+import("context";"testing";"net/http";"net/http/httptest";"github.com/fdsouvenir/m365cli/internal/graph")
+func TestReviewListsPagination(t *testing.T){calls:=0;srv:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){calls++;if calls==1{w.Write([]byte(`{"value":[{"id":"first"}],"@odata.nextLink":"/page2"}`))}else{w.Write([]byte(`{"value":[{"id":"second"}]}`))}}));defer srv.Close();c:=graph.NewClient(func(context.Context,[]string)(string,error){return "test",nil});c.BaseURL=srv.URL;rows,err:=New(c).Lists(context.Background());if err!=nil{t.Fatal(err)};if len(rows)!=2{t.Fatalf("REPRODUCED: lists=%d calls=%d, next link discarded",len(rows),calls)}}

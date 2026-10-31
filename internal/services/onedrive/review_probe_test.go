@@ -1,0 +1,3 @@
+package onedrive
+import("context";"testing";"net/http";"net/http/httptest";"encoding/json";"github.com/fdsouvenir/m365cli/internal/graph")
+func TestReviewMkdirName(t *testing.T){var got map[string]any;srv:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){json.NewDecoder(r.Body).Decode(&got);w.WriteHeader(201);w.Write([]byte(`{}`))}));defer srv.Close();c:=graph.NewClient(func(context.Context,[]string)(string,error){return "test",nil});c.BaseURL=srv.URL;if err:=New(c,"").Mkdir(context.Background(),"/My Folder");err!=nil{t.Fatal(err)};if got["name"]!="My Folder"{t.Fatalf("REPRODUCED: folder name payload=%q, wanted My Folder",got["name"])}}
